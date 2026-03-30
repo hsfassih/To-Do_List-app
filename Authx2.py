@@ -66,8 +66,8 @@ async def get_current_user(credentials:HTTPAuthorizationCredentials = Depends(se
         raise HTTPException(status_code=401, detail="Invalid Token")
     
     # fetch user from the database
-    stmt = select(User).where(User.username == username)
-    result = await session.execute(stmt)
+    statement = select(User).where(User.username == username)
+    result = await session.execute(statement)
     user = result.scalars().first()
     if user is None:
         raise HTTPException(status_code=401, detail="User not found")

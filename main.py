@@ -1,3 +1,4 @@
+# imports from other files
 from tasks import Task
 from task_repo import TaskRepository
 from users import User
@@ -6,13 +7,16 @@ from Authx2 import get_db, create_access_token, require_admin, get_current_user,
 from request_utils import RegisterRequest, LoginRequest, UserRequest 
 from initial_data import users_db, tasks_db
 
-import os
+# python libraries/imports
+import os, time, uuid, logging
 from fastapi import FastAPI, HTTPException, APIRouter, Request, Response, Depends
 from fastapi_redis_cache import FastApiRedisCache, cache
+from fastapi.middleware.cors import CORSMiddleware
 from slowapi import Limiter, _rate_limit_exceeded_handler
 from slowapi.util import get_remote_address
 from slowapi.errors import RateLimitExceeded
-from sqlmodel import SQLModel, Field, select
+from starlette.middleware.base import BaseHTTPMiddleware
+from sqlmodel import SQLModel, select
 from sqlalchemy import inspect
 from sqlalchemy.ext.asyncio import AsyncSession
 from contextlib import asynccontextmanager
@@ -64,10 +68,52 @@ async def lifespan(app:FastAPI):
 
     yield # necessary
 
+# Request logging Middleware that logs the method, path, and response time for every request
+logging.basicConfig(
+    level=logging.INFO, 
+    format="%(asctime)s - %(levelname)s - %(message)s",
+    force=True,     # prioritize this logger instead of using the default
+    handlers=[
+        # logging.StreamHandler(),    # defining stream to keep printing on terminal
+        logging.FileHandler("app.log", encoding="utf-8")       # defining a file handler to write logfile
+    ]
+)
+logger = logging.getLogger(__name__)
+
+class RequestLogMiddleware(BaseHTTPMiddleware):
+    async def dispatch(self, request:Request, call_next): # call_next is a callable for middleware functionality
+        start_time = time.perf_counter()
+        response = await call_next(request)
+        duration_ms = (time.perf_counter() - start_time)*1000
+        logger.info(
+            f"{request.method} {request.url.path} "
+            f"→ {response.status_code} | {duration_ms:.2f}ms"
+        )
+        return response
+
+# Request ID middleware that attaches a unique "X-Request-ID" header to every response.
+class RequestIDMiddleware(BaseHTTPMiddleware):
+    async def dispatch(self, request:Request, call_next):
+        response_id = str(uuid.uuid4())
+        response = await call_next(request)
+        response.headers["X-Request-ID"] = response_id
+        return response
+
 router = APIRouter(prefix="/api/v1")
 app = FastAPI(lifespan=lifespan)
 app.state.limiter = limiter
 app.add_exception_handler(RateLimitExceeded, _rate_limit_exceeded_handler)
+
+app.add_middleware(RequestLogMiddleware)
+app.add_middleware(RequestIDMiddleware)
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["*"],       # all origins allowed in development
+    allow_credentials=False,   # must be False when allow_origins=["*"]
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
+
 
 # Non-Functinoal Endpoints (for Authentication & Authorization)
 @router.post("/auth/register")
@@ -105,40 +151,42 @@ async def home_page():
 @router.get("/users")
 @limiter.limit("5/minute")
 async def all_users(request:Request, db_session: AsyncSession = Depends(get_db)):
-    stmt = select(User)
-    result = await db_session.execute(stmt)
-    users = result.scalars().all()
-    if not users:
-        return {"message": "No users found"}
-    return users
+    repo = UserRepo(db_session)
+    return await repo.get_all()
+
+@router.post("/users/create") # admin endpoint
+async def create_user(user:UserRequest, session:AsyncSession = Depends(get_db), current_user:User = Depends(require_admin)):
+    repo = UserRepo(session)
+    return await repo.add_user(user)
+
+@router.put("/users/update{username}")
+async def update_user(username:str, role:str, db_session:AsyncSession = Depends(get_db),  current_user:User = Depends(require_admin)):
+    repo = UserRepo(db_session)
+    return await repo.update_role(username, role)
+
+@router.delete("/users/delete{username}")
+async def delete_user(username:str, db_session:AsyncSession = Depends(get_db), current_user:User = Depends(require_admin)):
+    repo = UserRepo(db_session)
+    return await repo.delete_user(username)
 
 @router.get("/tasks")
 @cache(expire=30)
 async def all_tasks(response:Response, db_session: AsyncSession = Depends(get_db)):
-    stmt = select(Task)
-    result = await db_session.execute(stmt)
-    tasks = result.scalars().all()
-    if not tasks:
-        return {"message": "No tasks found"}
-    return [task.model_dump() for task in tasks] # returning dumps of singular task items
+    repo = TaskRepository(db_session)
+    return await repo.get_all()
 
-@router.post("/create_user") # admin endpoint
-async def create_user(user:UserRequest, session:AsyncSession = Depends(get_db), crnt_user:User = Depends(require_admin)):
-    repo = UserRepo(session)
-    return await repo.add_user(user.id, user.username, user.plain_pswrd, user.role)
-
-@router.post("/create_task")
-async def create_task(task:Task, session:AsyncSession = Depends(get_db)):
-    repo = TaskRepository(session)
+@router.post("/tasks/create")
+async def create_task(task:Task, db_session:AsyncSession = Depends(get_db)):
+    repo = TaskRepository(db_session)
     return await repo.make_task(task)
 
-@router.put("/task_update") # protected endpoint
-async def update_task(id:int, status:str, session:AsyncSession = Depends(get_db), crnt_user:User = Depends(get_current_user)):
+@router.put("/tasks/update{id}") # protected endpoint
+async def update_task(id:int, status:str, session:AsyncSession = Depends(get_db), current_user:User = Depends(get_current_user)):
     repo = TaskRepository(session)
     return await repo.task_update(id,status)
 
-@router.delete("/del_task") # admin endpoint
-async def delete_task(id:int, session:AsyncSession = Depends(get_db), crnt_user:User = Depends(require_admin)):
+@router.delete("/tasks/delete{id}") # admin endpoint
+async def delete_task(id:int, session:AsyncSession = Depends(get_db), current_user:User = Depends(require_admin)):
     repo = TaskRepository(session)
     return await repo.dell_by_id(id)
 

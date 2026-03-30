@@ -9,13 +9,20 @@ class TaskRepository:
     async def make_task(self, task: Task) -> Task:
         self.session.add(task)
         await self.session.commit()
-        await self.session.refresh(task)
         return task
 
+    async def get_all(self) -> list[Task]:
+        statement = select(Task)
+        result = await self.session.execute(statement)
+        tasks = result.scalars().all()
+        if not tasks:
+            return {"message": "No tasks found"}
+        # return [task.model_dump() for task in tasks]
+        return tasks
+
     async def get_by_id(self, id: int) -> Task | None:
-        stmt = select(Task).where(Task.id == id)
-        result = await self.session.execute(stmt)
-        return result.scalars().first()
+        result = await self.session.get(Task, id)
+        return result
 
     async def task_update(self, id: int, status: str) -> Task:
         task = await self.get_by_id(id)
@@ -27,9 +34,9 @@ class TaskRepository:
         return task
 
     async def dell_by_id(self, id: int) -> bool:
-        task = await self.get_by_id(id)
-        if not task:
-            raise ValueError(f"Task of id {id} not found")
-        await self.session.delete(task)
-        await self.session.commit()
+        try:
+            await self.session.delete(Task, id)
+            await self.session.commit()
+        except:
+            return ValueError("Task does not exist")
         return True
