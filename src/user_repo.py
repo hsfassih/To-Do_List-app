@@ -9,7 +9,7 @@ class UserRepo:
         self.session = session
 
     async def add_user(self, user:UserRequest) -> User:
-        user = User(username=user.username, hashed_pswrd=get_pswrd_hash(user.plain_pswrd), role=user.role)
+        user = User(full_name=user.full_name, username=user.username, hashed_pswrd=get_pswrd_hash(user.plain_pswrd), role=user.role)
         self.session.add(user)
         await self.session.commit()
         return user
@@ -38,6 +38,7 @@ class UserRepo:
             await self.session.delete(User, username)
             await self.session.commit()
         except:
-            return ValueError("The user does not exist")
+            return None
+            # return ValueError("The user does not exist")
         return True
     

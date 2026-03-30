@@ -2,30 +2,35 @@
 users_db = [
     {
         "id":1,
+        "full_name":"Jameel Hussain",
         "username": "jamil", 
         "password": "jameel@123", 
         "role":"admin"
     },
     {
         "id":2,
+        "full_name":"Roshan Kaleem",
         "username": "roshan",
         "password": "roshan@123", 
         "role":"admin"
     },
     {
         "id":3,
+        "full_name":"Syed Fassih",
         "username": "hsfassih", 
         "password": "fassih@1730", 
         "role":"user"
     },
     {
         "id":4,
+        "full_name":"Nauman Ahmed",
         "username": "nauman", 
         "password": "nauman@123", 
         "role":"user"
     },
     {
         "id":5,
+        "full_name":"Musadiq Ashfak",
         "username": "musadiq", 
         "password": "musadiq@123", 
         "role":"user"

@@ -27,7 +27,8 @@ class TaskRepository:
     async def task_update(self, id: int, status: str) -> Task:
         task = await self.get_by_id(id)
         if not task:
-            raise ValueError(f"Task of id {id} not found")
+            return None
+            # raise ValueError(f"Task of id {id} not found")
         task.task_status = status
         await self.session.commit()
         await self.session.refresh(task)
