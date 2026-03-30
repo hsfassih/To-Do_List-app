@@ -5,18 +5,18 @@ from users import User
 from user_repo import UserRepo
 from Authx2 import get_db, create_access_token, require_admin, get_current_user, engine, get_pswrd_hash, verify_pswrd
 from request_utils import RegisterRequest, LoginRequest, UserRequest 
+from middleware import RequestIDMiddleware, RequestLogMiddleware
 from initial_data import users_db, tasks_db
 
 # python libraries/imports
-import os, time, uuid, logging
+import os
 from fastapi import FastAPI, HTTPException, APIRouter, Request, Response, Depends
 from fastapi_redis_cache import FastApiRedisCache, cache
 from fastapi.middleware.cors import CORSMiddleware
 from slowapi import Limiter, _rate_limit_exceeded_handler
 from slowapi.util import get_remote_address
 from slowapi.errors import RateLimitExceeded
-from starlette.middleware.base import BaseHTTPMiddleware
-from sqlmodel import SQLModel, select
+from sqlmodel import SQLModel
 from sqlalchemy import inspect
 from sqlalchemy.ext.asyncio import AsyncSession
 from contextlib import asynccontextmanager
@@ -68,36 +68,26 @@ async def lifespan(app:FastAPI):
 
     yield # necessary
 
-# Request logging Middleware that logs the method, path, and response time for every request
-logging.basicConfig(
-    level=logging.INFO, 
-    format="%(asctime)s - %(levelname)s - %(message)s",
-    force=True,     # prioritize this logger instead of using the default
-    handlers=[
-        # logging.StreamHandler(),    # defining stream to keep printing on terminal
-        logging.FileHandler("app.log", encoding="utf-8")       # defining a file handler to write logfile
-    ]
-)
-logger = logging.getLogger(__name__)
 
-class RequestLogMiddleware(BaseHTTPMiddleware):
-    async def dispatch(self, request:Request, call_next): # call_next is a callable for middleware functionality
-        start_time = time.perf_counter()
-        response = await call_next(request)
-        duration_ms = (time.perf_counter() - start_time)*1000
-        logger.info(
-            f"{request.method} {request.url.path} "
-            f"→ {response.status_code} | {duration_ms:.2f}ms"
-        )
-        return response
 
-# Request ID middleware that attaches a unique "X-Request-ID" header to every response.
-class RequestIDMiddleware(BaseHTTPMiddleware):
-    async def dispatch(self, request:Request, call_next):
-        response_id = str(uuid.uuid4())
-        response = await call_next(request)
-        response.headers["X-Request-ID"] = response_id
-        return response
+# class RequestLogMiddleware(BaseHTTPMiddleware):
+#     async def dispatch(self, request:Request, call_next): # call_next is a callable for middleware functionality
+#         start_time = time.perf_counter()
+#         response = await call_next(request)
+#         duration_ms = (time.perf_counter() - start_time)*1000
+#         logger.info(
+#             f"{request.method} {request.url.path} "
+#             f"→ {response.status_code} | {duration_ms:.2f}ms"
+#         )
+#         return response
+
+# # Request ID middleware that attaches a unique "X-Request-ID" header to every response.
+# class RequestIDMiddleware(BaseHTTPMiddleware):
+#     async def dispatch(self, request:Request, call_next):
+#         response_id = str(uuid.uuid4())
+#         response = await call_next(request)
+#         response.headers["X-Request-ID"] = response_id
+#         return response
 
 router = APIRouter(prefix="/api/v1")
 app = FastAPI(lifespan=lifespan)
