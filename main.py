@@ -7,6 +7,8 @@ from Authx2 import get_db, create_access_token, require_admin, get_current_user,
 from request_utils import RegisterRequest, LoginRequest, UserRequest 
 from middleware import RequestIDMiddleware, RequestLogMiddleware
 from initial_data import users_db, tasks_db
+from user_service import UserService
+from task_service import TaskService
 
 # python libraries/imports
 import os
@@ -108,28 +110,32 @@ app.add_middleware(
 # Non-Functinoal Endpoints (for Authentication & Authorization)
 @router.post("/auth/register")
 async def register(data:RegisterRequest, session:AsyncSession = Depends(get_db)):
-    user_repo = UserRepo(session)
-    existing = await user_repo.get_by_username(data.username)
-    if existing:
-        raise HTTPException(status_code=400, detail="User already exits")
-    user = await user_repo.add_user(data.username, data.plain_pswrd, data.role)
-    access_token = create_access_token(data={"sub":user.username})
-    return {
-        "access_token": access_token,
-        "token_type": "bearer"
-    }
+    service = UserService(UserRepo(session))
+    return await service.register(data)
+    # user_repo = UserRepo(session)
+    # existing = await user_repo.get_by_username(data.username)
+    # if existing:
+    #     raise HTTPException(status_code=400, detail="User already exits")
+    # user = await user_repo.add_user(data.username, data.plain_pswrd, data.role)
+    # access_token = create_access_token(data={"sub":user.username})
+    # return {
+    #     "access_token": access_token,
+    #     "token_type": "bearer"
+    # }
     
 @router.post("/auth/login")
 async def login(data:LoginRequest, session:AsyncSession = Depends(get_db)):
-    user_repo = UserRepo(session)
-    user = await user_repo.get_by_username(data.username)
-    if not user or not verify_pswrd(data.plain_pswrd, user.hashed_pswrd):
-        raise HTTPException(status_code=401, detail="Incorrect username or password")
-    access_token = create_access_token(data={"sub":user.username})
-    return {
-        "access_token": access_token,
-        "token_type": "bearer"
-    }
+    service = UserService(UserRepo(session))
+    return await service.login(data)
+    # user_repo = UserRepo(session)
+    # user = await user_repo.get_by_username(data.username)
+    # if not user or not verify_pswrd(data.plain_pswrd, user.hashed_pswrd):
+    #     raise HTTPException(status_code=401, detail="Incorrect username or password")
+    # access_token = create_access_token(data={"sub":user.username})
+    # return {
+    #     "access_token": access_token,
+    #     "token_type": "bearer"
+    # }
     
 # Functional Endpoints
 @router.get("/")
@@ -138,46 +144,48 @@ async def home_page():
         "home page": "hello world"
     }
 
+# user routes
+
 @router.get("/users")
 @limiter.limit("5/minute")
 async def all_users(request:Request, db_session: AsyncSession = Depends(get_db)):
-    repo = UserRepo(db_session)
-    return await repo.get_all()
+    service = UserService(UserRepo(db_session))
+    return await service.get_all_users()
 
 @router.post("/users/create") # admin endpoint
-async def create_user(user:UserRequest, session:AsyncSession = Depends(get_db), current_user:User = Depends(require_admin)):
-    repo = UserRepo(session)
-    return await repo.add_user(user)
+async def create_user(user:UserRequest, db_session:AsyncSession = Depends(get_db), current_user:User = Depends(require_admin)):
+    service = UserService(UserRepo(db_session))
+    return await service.create_user(user)
 
 @router.put("/users/update{username}")
 async def update_user(username:str, role:str, db_session:AsyncSession = Depends(get_db),  current_user:User = Depends(require_admin)):
-    repo = UserRepo(db_session)
-    return await repo.update_role(username, role)
+    service = UserService(UserRepo(db_session))
+    return await service.update_user_role(username, role)
 
 @router.delete("/users/delete{username}")
 async def delete_user(username:str, db_session:AsyncSession = Depends(get_db), current_user:User = Depends(require_admin)):
-    repo = UserRepo(db_session)
-    return await repo.delete_user(username)
+    service = UserService(UserRepo(db_session))
+    return await service.delete_user(username)
 
 @router.get("/tasks")
 @cache(expire=30)
 async def all_tasks(response:Response, db_session: AsyncSession = Depends(get_db)):
-    repo = TaskRepository(db_session)
-    return await repo.get_all()
+    service = TaskService(TaskRepository(db_session))
+    return await service.get_all_tasks()
 
 @router.post("/tasks/create")
 async def create_task(task:Task, db_session:AsyncSession = Depends(get_db)):
-    repo = TaskRepository(db_session)
-    return await repo.make_task(task)
+    service = TaskService(TaskRepository(db_session))
+    return await service.create_task(task)
 
 @router.put("/tasks/update{id}") # protected endpoint
-async def update_task(id:int, status:str, session:AsyncSession = Depends(get_db), current_user:User = Depends(get_current_user)):
-    repo = TaskRepository(session)
-    return await repo.task_update(id,status)
+async def update_task(id:int, status:str, db_session:AsyncSession = Depends(get_db), current_user:User = Depends(get_current_user)):
+    service = TaskService(TaskRepository(db_session))
+    return await service.update_task_status(id, status)
 
 @router.delete("/tasks/delete{id}") # admin endpoint
-async def delete_task(id:int, session:AsyncSession = Depends(get_db), current_user:User = Depends(require_admin)):
-    repo = TaskRepository(session)
-    return await repo.dell_by_id(id)
+async def delete_task(id:int, db_session:AsyncSession = Depends(get_db), current_user:User = Depends(require_admin)):
+    service = TaskService(TaskRepository(db_session))
+    return await service.delete_task(id)
 
 app.include_router(router)
