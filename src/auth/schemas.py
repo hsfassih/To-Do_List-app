@@ -19,4 +19,4 @@ class LoginRequest(BaseModel):
     # id:int
     username:str
     plain_pswrd:str
-    role:str
+    # role:str

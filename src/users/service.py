@@ -1,9 +1,9 @@
 from fastapi import HTTPException
 
-from user_repo import UserRepo
-from users import User
-from request_utils import RegisterRequest, LoginRequest, UserRequest
-from Authx2 import create_access_token, verify_pswrd
+from users.repository import UserRepo
+from users.models import User
+from auth.schemas import RegisterRequest, LoginRequest, UserRequest
+from auth.utils import create_access_token, verify_pswrd
 
 class UserService:
     def __init__(self, repo: UserRepo):

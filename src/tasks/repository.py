@@ -1,4 +1,4 @@
-from tasks import Task
+from tasks.models import Task
 from sqlmodel import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -35,9 +35,7 @@ class TaskRepository:
         return task
 
     async def dell_by_id(self, id: int) -> bool:
-        try:
-            await self.session.delete(Task, id)
-            await self.session.commit()
-        except:
-            return ValueError("Task does not exist")
+        task = await self.get_by_id(id)
+        await self.session.delete(task)
+        await self.session.commit()
         return True

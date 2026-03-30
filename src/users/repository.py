@@ -1,8 +1,8 @@
-from users import User
-from request_utils import UserRequest
+from users.models import User
+from auth.schemas import UserRequest
 from sqlmodel import select
 from sqlalchemy.ext.asyncio import AsyncSession
-from Authx2 import get_pswrd_hash
+from auth.utils import get_pswrd_hash
 
 class UserRepo:
     def __init__(self, session: AsyncSession):
@@ -34,11 +34,8 @@ class UserRepo:
         return user
     
     async def delete_user(self, username:str) -> bool:
-        try:
-            await self.session.delete(User, username)
-            await self.session.commit()
-        except:
-            return None
-            # return ValueError("The user does not exist")
+        user = await self.get_by_username(username)
+        await self.session.delete(user)
+        await self.session.commit()
         return True
     

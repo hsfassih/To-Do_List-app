@@ -1,14 +1,16 @@
 # imports from other files
-from tasks import Task
-from task_repo import TaskRepository
-from users import User
-from user_repo import UserRepo
-from Authx2 import get_db, require_admin, get_current_user, engine, get_pswrd_hash
-from request_utils import RegisterRequest, LoginRequest, UserRequest 
+from tasks.models import Task
+from tasks.repository import TaskRepository
+from users.models import User
+from users.repository import UserRepo
+from auth.dependancies import require_admin, get_current_user
+from auth.database import get_db, engine
+from auth.utils import get_pswrd_hash
+from auth.schemas import RegisterRequest, LoginRequest, UserRequest 
 from middleware import RequestIDMiddleware, RequestLogMiddleware
-from initial_data import users_db, tasks_db
-from user_service import UserService
-from task_service import TaskService
+from seed.initial_data import users_db, tasks_db
+from users.service import UserService
+from tasks.service import TaskService
 
 # python libraries/imports
 import os

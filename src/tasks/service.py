@@ -1,5 +1,5 @@
-from task_repo import TaskRepository
-from tasks import Task
+from tasks.repository import TaskRepository
+from tasks.models import Task
 from fastapi import HTTPException
 
 VALID_STATUSES = {"pending", "in progress", "done"}
