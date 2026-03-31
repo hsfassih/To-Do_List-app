@@ -1,0 +1,22 @@
+FROM python:3.14-slim
+# defining dedicated work directory inside container (can be any name other than OS level directories)
+WORKDIR /app
+
+# copying and installing requirements
+COPY src/requirements.txt ./
+RUN pip install --upgrade pip && pip install -r requirements.txt
+
+# copying the source code and exposing the port
+COPY . .
+EXPOSE 8080
+
+# setting up environment path for python (path to look for imports)
+ENV PYTHONPATH=/app/src
+
+# transferring ownership to app user for logging permission
+RUN useradd app && chown -R app:app /app
+USER app
+
+# executable and its args (ENTRPOINT + CMD), args are changable at runtime
+ENTRYPOINT [ "uvicorn" ]
+CMD ["src.main:app", "--host", "0.0.0.0", "--port", "8080"]
