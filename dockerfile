@@ -2,9 +2,10 @@ FROM python:3.14-slim
 # defining dedicated work directory inside container (can be any name other than OS level directories)
 WORKDIR /app
 
-# copying and installing requirements
-COPY src/requirements.txt ./
-RUN pip install --upgrade pip && pip install -r requirements.txt
+# mounting and installing requirements with cache instead of copying since they are only required once
+RUN --mount=type=bind,source=src/requirements.txt,target=/tmp/requirements.txt \
+    --mount=type=cache,target=/root/.cache/pip \
+    pip install --upgrade pip && pip install -r /tmp/requirements.txt
 
 # copying the source code and exposing the port
 COPY . .
