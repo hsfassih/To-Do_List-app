@@ -1,6 +1,7 @@
 name: Build & Test
 
-on: [push, pull_request] # defining actions to trigger the workflow
+on: # defining actions to trigger the workflow
+  push:
 
 permissions: # for the workflow to _ repository
   contents: read
