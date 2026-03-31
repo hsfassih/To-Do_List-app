@@ -25,6 +25,6 @@ jobs:
         uses: docker/build-push-action@v7
         with:
           push: true
-          tags: user/app:latest
-          cache-from: type=registry,ref=user/app:buildcache
-          cache-to: type=registry,ref=user/app:buildcache,mode=max
+          tags: ${{ secrets.DOCKERHUB_USERNAME }}/todo-app:latest
+          cache-from: type=registry,ref=${{ secrets.DOCKERHUB_USERNAME }}/todo-app:buildcache
+          cache-to: type=registry,ref=${{ secrets.DOCKERHUB_USERNAME }}/todo-app:buildcache,mode=max
