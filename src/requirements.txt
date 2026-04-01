@@ -7,6 +7,9 @@ aiosqlite
 python-jose[cryptography]
 pwdlib[argon2]
 slowapi
-fastapi-redis-cache
+fastapi-cache2[redis]
+redis
+jinja2
 pydantic
+pydantic-settings
 orjson

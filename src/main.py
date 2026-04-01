@@ -11,11 +11,15 @@ from middleware import RequestIDMiddleware, RequestLogMiddleware
 from seed.initial_data import users_db, tasks_db
 from users.service import UserService
 from tasks.service import TaskService
+from config import settings
 
 # python libraries/imports
 import os
 from fastapi import FastAPI, APIRouter, Request, Response, Depends
-from fastapi_redis_cache import FastApiRedisCache, cache
+from fastapi_cache import FastAPICache
+from fastapi_cache.backends.redis import RedisBackend
+from fastapi_cache.decorator import cache
+from redis import asyncio as aioredis
 from fastapi.middleware.cors import CORSMiddleware
 from slowapi import Limiter, _rate_limit_exceeded_handler
 from slowapi.util import get_remote_address
@@ -33,10 +37,9 @@ limiter = Limiter(key_func=get_remote_address)
 @asynccontextmanager
 async def lifespan(app:FastAPI):
     # redis cache initialization on startup
-    redis_cache = FastApiRedisCache()
-    redis_cache.init(
-        host_url=os.environ.get("REDIS_URL", LOCAL_REDIS_URL)
-    )
+    redis = aioredis.from_url(settings.redis_url)
+    FastAPICache.init(RedisBackend(redis), prefix="fastapi-cache")
+    print(f"Redis cache initialized | {settings.redis_url}")
     
     # inspect using run_sync to bridge async → sync
     async with engine.connect() as conn:

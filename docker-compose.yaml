@@ -1,0 +1,29 @@
+services:
+  redis:
+    image: redis:alpine
+    ports:
+      - 6379:6379
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 3s
+      retries: 5
+    
+  app:
+    build: .
+    image: hsfassih/todo-app
+    ports:
+      - 8080:8080
+    env_file:
+      - .env
+    environment:
+      - redis_url=redis://redis:6379 # overriding because the link for local & container are different
+    volumes:
+      - sqlite_data:/app/data # persists the .db file across restarts
+    depends_on:
+      redis:
+        condition: service_healthy
+    restart: unless-stopped
+
+volumes:
+  sqlite_data:

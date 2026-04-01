@@ -9,10 +9,14 @@ RUN --mount=type=bind,source=src/requirements.txt,target=/tmp/requirements.txt \
 
 # copying the source code and exposing the port
 COPY . .
+RUN mkdir -p /app/data
 EXPOSE 8080
 
 # setting up environment path for python (path to look for imports)
 ENV PYTHONPATH=/app/src
+
+# this is for proper Docker logging
+ENV PYTHONUNBUFFERED=1
 
 # transferring ownership to app user for logging permission
 RUN useradd app && chown -R app:app /app
