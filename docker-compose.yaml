@@ -19,7 +19,7 @@ services:
     environment:
       - redis_url=redis://redis:6379 # overriding because the link for local & container are different
     volumes:
-      - sqlite_data:/app/data # persists the .db file across restarts
+      - sqlite_data:/app/data # volume to persist the .db file across restarts
     depends_on:
       redis:
         condition: service_healthy
