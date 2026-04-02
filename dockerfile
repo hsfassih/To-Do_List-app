@@ -1,11 +1,21 @@
-FROM python:3.14-slim
+# Stage 1: Building
+FROM python:3.14-slim AS builder
 # defining dedicated work directory inside container (can be any name other than OS level directories)
 WORKDIR /app
 
 # mounting and installing requirements with cache instead of copying since they are only required once
+# also using prefix for dependancies so they are ez to copy (installs requirements into /install instead of system python paths)
 RUN --mount=type=bind,source=src/requirements.txt,target=/tmp/requirements.txt \
-    --mount=type=cache,target=/root/.cache/pip \
-    pip install --upgrade pip && pip install -r /tmp/requirements.txt
+--mount=type=cache,target=/root/.cache/pip \
+pip install --upgrade pip && \
+pip install --prefix=/install -r /tmp/requirements.txt
+
+FROM python:3.14-slim AS runtime
+
+WORKDIR /app
+
+# copying the installed packages from builder stage to /usr/local
+COPY --from=builder /install /usr/local
 
 # copying the source code and exposing the port
 COPY . .
