@@ -1,0 +1,79 @@
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: sqlite-pvc
+  namespace: todo-app
+spec:
+  accessModes:
+    - ReadWriteOnce
+  resources:
+    requests:
+      storage: 1Gi
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: todo-app
+  namespace: todo-app
+spec:
+  replicas: 1  # Must stay 1 — SQLite does not support concurrent multi-pod writes
+  selector:
+    matchLabels:
+      app: todo-app
+  template:
+    metadata:
+      labels:
+        app: todo-app
+    spec:
+      containers:
+        - name: todo-app
+          image: hsfassih/todo-app
+          imagePullPolicy: Always  # Change to Never if you used: k3d image import
+          ports:
+            - containerPort: 8080
+          env:
+            - name: secret_key
+              valueFrom:
+                secretKeyRef:
+                  name: todo-secret
+                  key: secret_key
+            - name: algorithm
+              valueFrom:
+                secretKeyRef:
+                  name: todo-secret
+                  key: algorithm
+            - name: access_token_expire_minutes
+              valueFrom:
+                secretKeyRef:
+                  name: todo-secret
+                  key: access_token_expire_minutes
+            - name: database_url
+              valueFrom:
+                secretKeyRef:
+                  name: todo-secret
+                  key: database_url
+            - name: redis_url
+              valueFrom:
+                secretKeyRef:
+                  name: todo-secret
+                  key: redis_url
+          volumeMounts:
+            - mountPath: /app/data
+              name: sqlite-storage
+      volumes:
+        - name: sqlite-storage
+          persistentVolumeClaim:
+            claimName: sqlite-pvc
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: todo-app-service
+  namespace: todo-app
+spec:
+  selector:
+    app: todo-app
+  ports:
+    - port: 80
+      targetPort: 8080
+  type: ClusterIP
