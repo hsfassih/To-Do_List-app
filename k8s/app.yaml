@@ -1,3 +1,4 @@
+# Persistant Volume Clain (PVC)
 apiVersion: v1
 kind: PersistentVolumeClaim
 metadata:
@@ -9,6 +10,8 @@ spec:
   resources:
     requests:
       storage: 1Gi
+
+# Application deployment
 ---
 apiVersion: apps/v1
 kind: Deployment
@@ -16,7 +19,7 @@ metadata:
   name: todo-app
   namespace: todo-app
 spec:
-  replicas: 1  # Must stay 1 — SQLite does not support concurrent multi-pod writes
+  replicas: 1 # can be scaled upto 2 or more using kubectl cli
   selector:
     matchLabels:
       app: todo-app
@@ -31,6 +34,13 @@ spec:
           imagePullPolicy: Always  # Change to Never if you used: k3d image import
           ports:
             - containerPort: 8080
+          resources:
+            requests:
+              cpu: "100m"
+              memory: "128Mi"
+            limits:
+              cpu: "500m"
+              memory: "512Mi"
           env:
             - name: secret_key
               valueFrom:
@@ -64,6 +74,8 @@ spec:
         - name: sqlite-storage
           persistentVolumeClaim:
             claimName: sqlite-pvc
+
+# Application Service            
 ---
 apiVersion: v1
 kind: Service

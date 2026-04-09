@@ -1,3 +1,4 @@
+# Defining Namespace, Logical isolation of the application
 apiVersion: v1
 kind: Namespace
 metadata:
