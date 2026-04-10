@@ -1,25 +1,40 @@
-# Persistant Volume Clain (PVC)
+# Persistant Volume Clain (PVC), not to be used in statefulset
+# apiVersion: v1
+# kind: PersistentVolumeClaim
+# metadata:
+#   name: sqlite-pvc
+#   namespace: todo-app
+# spec:
+#   accessModes:
+#     - ReadWriteOnce # here, 'Once' means volume can only be attached with one node at a time. Replacable with Many
+#   resources:
+#     requests:
+#       storage: 1Gi
+
+# Headless service: required for StatefulSet stable DNS indentity
 apiVersion: v1
-kind: PersistentVolumeClaim
+kind: Service
 metadata:
-  name: sqlite-pvc
+  name: todo-app-headless
   namespace: todo-app
 spec:
-  accessModes:
-    - ReadWriteOnce
-  resources:
-    requests:
-      storage: 1Gi
+  clusterIP: None
+  selector:
+    app: todo-app
+  ports:
+  - port: 8080
+    targetPort: 8080
 
-# Application deployment
+# Application deployment -> Changed to StatefulSet from deployment
 ---
 apiVersion: apps/v1
-kind: Deployment
+kind: StatefulSet #Deployment
 metadata:
   name: todo-app
   namespace: todo-app
 spec:
-  replicas: 1 # can be scaled upto 2 or more using kubectl cli
+  serviceName: "todo-app-headless" # the name of the headless service name
+  replicas: 3 # can be scaled upto more using kubectl cli
   selector:
     matchLabels:
       app: todo-app
@@ -69,11 +84,16 @@ spec:
                   key: redis_url
           volumeMounts:
             - mountPath: /app/data
-              name: sqlite-storage
-      volumes:
-        - name: sqlite-storage
-          persistentVolumeClaim:
-            claimName: sqlite-pvc
+              name: sqlite-storage # name of volumeClaimTemplate
+  volumeClaimTemplates:
+    - metadata:
+        name: sqlite-storage
+      spec:
+        accessModes:
+          - ReadWriteOnce
+        resources:
+          requests:
+            storage: 1Gi
 
 # Application Cluster IP Service            
 ---
