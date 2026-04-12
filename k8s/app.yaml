@@ -61,6 +61,9 @@ spec:
             limits:
               cpu: "500m"
               memory: "512Mi"
+          envFrom:
+            - configMapRef:
+                name: app-config          
           env:
             - name: secret_key
               valueFrom:
@@ -87,11 +90,27 @@ spec:
                 secretKeyRef:
                   name: todo-secret
                   key: redis_url
-            # - name: LOGGING_FORMAT
-            #   value: "json"
+            - name: DB_PASSWORD              # <-- ADD THIS (individual Secret key as env var)
+              valueFrom:
+                secretKeyRef:
+                  name: todo-secret
+                  key: db_password
           volumeMounts:
             - mountPath: /app/data
               name: sqlite-storage # name of volumeClaimTemplate
+            - mountPath: /etc/app-config     # <-- ADD: ConfigMap mounted as files
+              name: app-config-volume
+              readOnly: true
+            - mountPath: /etc/secrets        # <-- ADD: Secret mounted as files
+              name: app-secret-volume
+              readOnly: true
+      volumes:
+        - name: app-config-volume
+          configMap:
+            name: app-config
+        - name: app-secret-volume
+          secret:
+            secretName: todo-secret
   volumeClaimTemplates:
     - metadata:
         name: sqlite-storage

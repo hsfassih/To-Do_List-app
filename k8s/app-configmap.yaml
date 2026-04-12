@@ -1,0 +1,10 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: app-config
+  namespace: todo-app
+data:
+  APP_NAME: "todo-list-app"
+  APP_ENV: "production"
+  LOG_LEVEL: "info"
+  ACCESS_TOKEN_EXPIRE_MINUTES: "30"
