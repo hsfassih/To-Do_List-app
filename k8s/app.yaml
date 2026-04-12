@@ -49,6 +49,11 @@ spec:
           imagePullPolicy: Always  # Change to Never if you used: k3d image import
           ports:
             - containerPort: 8080
+          # logging: # added logging configuration
+          #   driver: "json-file"
+          #   options:
+          #     max-size: "10m"
+          #     max-file: "3"
           resources:
             requests:
               cpu: "100m"
@@ -82,6 +87,8 @@ spec:
                 secretKeyRef:
                   name: todo-secret
                   key: redis_url
+            # - name: LOGGING_FORMAT
+            #   value: "json"
           volumeMounts:
             - mountPath: /app/data
               name: sqlite-storage # name of volumeClaimTemplate

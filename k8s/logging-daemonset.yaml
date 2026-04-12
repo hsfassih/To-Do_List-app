@@ -1,0 +1,168 @@
+# Loggin Agent Daemonset that runs on every node
+apiVersion: apps/v1
+kind: DaemonSet
+metadata:
+  name: logging-agent
+  namespace: todo-app
+  labels:
+    app: logging-agent
+    version: v1
+spec:
+  selector:
+    matchLabels:
+      app: logging-agent
+  updateStrategy:
+    type: RollingUpdate
+    rollingUpdate:
+      maxUnavailable: 1 # to ensure a smooth rollout
+  template:
+    metadata:
+      labels:
+        app: logging-agent
+      annotations:
+        prometheus.io/scrape: "true"
+        prometheus.io/port: "9100"
+    spec:
+      tolerations: # it allows pods to run on nodes with taints
+        - key: node-role.kubernetes.io/control-plane
+          operator: Exists
+          effect: NoSchedule
+        - key: node-role.kubernetes.io/master
+          operator: Exists
+          effect: NoSchedule
+      terminationGracePeriodSeconds: 30 # ensure proper cleanup on node termination
+      serviceAccountName: logging-agent
+      hostNetwork: false # true if accessing host-level metrics
+      hostPID: false # true if monitoring host processes
+      containers:
+        - name: logging-agent
+          image: fluent/fluent-bit:3.2
+          imagePullPolicy: IfNotPresent
+          # resource configurations
+          resources: 
+            requests:
+              cpu: 100m
+              memory: 128Mi
+            limits:
+              cpu: 500m
+              memory: 512Mi
+          # mount configurations
+          volumeMounts: 
+            - name: config
+              mountPath: /fluent-bit/etc/
+              readOnly: true
+            - name: varlog
+              mountPath: /var/log
+              readOnly: false
+            - name: varlibdockercontainers
+              mountPath: /var/log/pods
+              readOnly: true
+          # environment variables from configmap and secret
+          env:
+            - name: ELASTICSEARCH_HOST
+              valueFrom:
+                configMapKeyRef:
+                  name: logging-agent-config
+                  key: elasticsearch_host
+            - name: ELASTICSEARCH_PORT
+              valueFrom:
+                configMapKeyRef:
+                  name: logging-agent-config
+                  key: elasticsearch_port
+            - name: LOG_LEVEL
+              valueFrom:
+                configMapKeyRef:
+                  name: logging-agent-config
+                  key: log_level
+            - name: NODE_NAME
+              valueFrom:
+                fieldRef:
+                  fieldPath: spec.nodeName
+            - name: POD_NAME
+              valueFrom:
+                fieldRef:
+                  fieldPath: metadata.name
+            - name: POD_NAMESPACE
+              valueFrom:
+                fieldRef:
+                  fieldPath: metadata.namespace
+          # Liveness probe ensures agent restarts if hung
+          livenessProbe:
+            httpGet:
+              path: /api/v1/health
+              port: 2020
+            initialDelaySeconds: 30
+            periodSeconds: 10
+            timeoutSeconds: 5
+            failureThreshold: 3
+          # Readiness probe ensures traffic only goes to healthy agents
+          readinessProbe:
+            httpGet:
+              path: /api/v1/health
+              port: 2020
+            initialDelaySeconds: 10
+            periodSeconds: 10
+            timeoutSeconds: 5
+            failureThreshold: 3
+          # Security context for pod security
+          securityContext:
+            runAsNonRoot: true
+            runAsUser: 1000
+            allowPrivilegeEscalation: false
+            readOnlyRootFilesystem: false
+            capabilities:
+              drop:
+                - ALL
+      # Host volumes
+      volumes:
+        - name: config
+          configMap:
+            name: logging-agent-config
+        - name: varlog
+          hostPath:
+            path: /var/log
+            type: Directory
+        - name: varlibdockercontainers
+          hostPath:
+            path: /var/log/pods
+            type: Directory
+
+---
+# ServiceAccount for RBAC
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: logging-agent
+  namespace: todo-app
+
+---
+# ClusterRole for logging agent permissions
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRole
+metadata:
+  name: logging-agent
+rules:
+  - apiGroups: [""]
+    resources: ["nodes", "nodes/proxy"]
+    verbs: ["get", "list", "watch"]
+  - apiGroups: [""]
+    resources: ["pods", "namespaces"]
+    verbs: ["get", "list", "watch"]
+  - apiGroups: ["apps"]
+    resources: ["replicasets"]
+    verbs: ["get", "list", "watch"]
+
+---
+# ClusterRoleBinding to attach role to ServiceAccount
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRoleBinding
+metadata:
+  name: logging-agent
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: ClusterRole
+  name: logging-agent
+subjects:
+  - kind: ServiceAccount
+    name: logging-agent
+    namespace: todo-app
