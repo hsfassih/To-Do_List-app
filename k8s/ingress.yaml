@@ -6,13 +6,25 @@ metadata:
   annotations:
     traefik.ingress.kubernetes.io/router.entrypoints: web
 spec:
+  ingressClassName: traefik # explicitly targeting the traefik ingress controller
   rules:
-    - http:
+    - host: api.todo.local # hostname 1: main FastAPI application
+      http:
         paths:
           - path: /
             pathType: Prefix
             backend:
               service:
                 name: todo-app-service
+                port:
+                  number: 80
+    - host: demo.todo.local        # hostname 2: httpbin demo service
+      http:
+        paths:
+          - path: /
+            pathType: Prefix
+            backend:
+              service:
+                name: demo-service
                 port:
                   number: 80
