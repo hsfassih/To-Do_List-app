@@ -98,10 +98,10 @@ spec:
           volumeMounts:
             - mountPath: /app/data
               name: sqlite-storage # name of volumeClaimTemplate
-            - mountPath: /etc/app-config     # <-- ADD: ConfigMap mounted as files
+            - mountPath: /etc/app-config     # <-- ConfigMap mounted as files
               name: app-config-volume
               readOnly: true
-            - mountPath: /etc/secrets        # <-- ADD: Secret mounted as files
+            - mountPath: /etc/secrets        # <-- Secret mounted as files
               name: app-secret-volume
               readOnly: true
       volumes:
