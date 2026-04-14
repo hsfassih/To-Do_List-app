@@ -1,0 +1,34 @@
+# Service Account
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: pod-reader      # serviceaccount name the <sa> part in system:serviceaccount:ns:sa
+  namespace: todo-app   # the <ns> part -> namespace
+
+---
+# Role: only to list and get pods, nothing else
+apiVersion: rbac.authorization.k8s.io/v1
+kind: Role
+metadata:
+  name: pod-reader-role
+  namespace: todo-app
+rules:
+  - apiGroups: [""]         # "" means core API group (pods, services, etc.)
+    resources: ["pods"]     # the resource to which the role is applied
+    verbs: ["get", "list"]  # explicitly no "delete", "watch", "create", etc. no "deployments" resource here → test case 3 passes
+
+---
+# RoleBinding:
+apiVersion: rbac.authorization.k8s.io/v1
+kind: RoleBinding
+metadata:
+  name: pod-reader-binding
+  namespace: todo-app
+subjects:
+  - kind: ServiceAccount
+    name: pod-reader          # must match ServiceAccount.metadata.name above
+    namespace: todo-app       # must match ServiceAccount.metadata.namespace
+roleRef: # reference to the role being used
+  kind: Role
+  name: pod-reader-role       # must match Role.metadata.name above
+  apiGroup: rbac.authorization.k8s.io
