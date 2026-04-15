@@ -1,0 +1,38 @@
+# argocd-app.yaml
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: todo-app
+  namespace: argocd
+  # Finalizer ensures ArgoCD cleans up cluster resources when the Application is deleted
+  finalizers:
+    - resources-finalizer.argocd.argoproj.io
+spec:
+  project: default
+
+  source:
+    repoURL: https://github.com/hsfassih/To-Do_List-app.git
+    targetRevision: main          # branch ArgoCD tracks
+    path: todo-app-chart          # path to your Helm chart inside the repo
+    helm:
+      valueFiles:
+        - values.yaml             # base values
+        - values-prod.yaml        # prod overrides (replicaCount: 3, etc.)
+
+  destination:
+    server: https://kubernetes.default.svc   # in-cluster API server
+    namespace: todo-app                       # must match .Values.namespace in prod
+
+  syncPolicy:
+    automated:
+      prune: true       # delete cluster resources removed from Git  (Test Case 3 support)
+      selfHeal: true    # revert manual cluster changes back to Git state (Test Case 3)
+    syncOptions:
+      - CreateNamespace=true    # creates todo-app namespace if it doesn't exist
+      - ServerSideApply=true    # avoids annotation size limits on large resources
+    retry:
+      limit: 5
+      backoff:
+        duration: 5s
+        factor: 2
+        maxDuration: 3m

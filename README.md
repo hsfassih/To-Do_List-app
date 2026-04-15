@@ -14,6 +14,7 @@ A production-ready RESTful To-Do List API built with **FastAPI**, featuring JWT 
   - [k3d (Kubernetes with Local Cluster)](#k3d-kubernetes-with-local-cluster)
   - [kubectl (Kubernetes CLI)](#kubectl-kubernetes-cli)
   - [Helm (Package Manager for Kubernetes)](#helm-package-manager-for-kubernetes)
+  - [ArgoCD (GitOps Continuous Deployment)](#argocd-gitops-continuous-deployment)
 
 ---
 
@@ -770,7 +771,231 @@ helm uninstall todo-app -n todo-app
 
 ---
 
+### ArgoCD (GitOps Continuous Deployment)
+
+ArgoCD is a declarative GitOps continuous deployment tool for Kubernetes. It enables automated application deployment, management, and synchronization with your Git repository. Use these commands to install, configure, and manage ArgoCD on your k3d cluster.
+
+#### Prerequisites
+
+- k3d cluster running and `kubectl` context pointing to it
+- `argocd` CLI installed on your machine
+- `base64` command-line tool available (built into bash/PowerShell)
+
+#### Step 1: Create the ArgoCD Namespace and Install ArgoCD
+
+```bash
+kubectl create namespace argocd
+```
+
+*Purpose: Creates a dedicated namespace for ArgoCD components, providing logical isolation.*
+
+```bash
+kubectl apply -n argocd -f https://raw.githubusercontent.com/argoproj/argo-cd/stable/manifests/install.yaml
+```
+
+*Purpose: Deploys all ArgoCD components (argocd-server, argocd-repo-server, argocd-application-controller, argocd-dex-server, argocd-redis, argocd-notifications-controller) into the argocd namespace.*
+
+#### Step 2: Wait for All Pods to Reach Running State (Test Case 1)
+
+```bash
+kubectl wait --for=condition=Ready pods --all -n argocd --timeout=300s
+```
+
+*Purpose: Blocks execution until all pods in the argocd namespace are in Ready condition. Timeout is set to 300 seconds (5 minutes).*
+
+```bash
+kubectl get pods -n argocd
+```
+
+*Purpose: Verifies that all ArgoCD pods are in `Running` state. Expected output shows pods like `argocd-server`, `argocd-repo-server`, `argocd-application-controller`, `argocd-dex-server`, `argocd-redis`, and `argocd-notifications-controller` with status `Running` and `READY` as `1/1` or `2/2`.*
+
+**Test Case 1 Verification**: All pods should show `Running` status with full readiness.
+
+#### Step 3: Enable HTTP Mode for Local Development
+
+By default, ArgoCD uses HTTPS with self-signed certificates. For local k3d development without certificate warnings, enable insecure (HTTP) mode by creating and applying a patch file.
+
+Create a file named `argocd-patch.yaml` in your project root:
+
+```yaml
+data:
+  server.insecure: "true"
+```
+
+*Purpose: This YAML file contains the patch to enable HTTP mode on the argocd-server.*
+
+Apply the patch:
+
+```bash
+kubectl patch configmap argocd-cmd-params-cm -n argocd --type merge --patch-file argocd-patch.yaml
+```
+
+*Purpose: Merges the patch into the existing `argocd-cmd-params-cm` ConfigMap, setting `server.insecure` to `true`. This tells the ArgoCD server to run in HTTP mode instead of HTTPS.*
+
+Restart the ArgoCD server to apply the configuration change:
+
+```bash
+kubectl rollout restart deployment argocd-server -n argocd
+```
+
+*Purpose: Restarts the argocd-server deployment pods so they pick up the new configuration.*
+
+Monitor the rollout status:
+
+```bash
+kubectl rollout status deployment argocd-server -n argocd
+```
+
+*Purpose: Waits for the rollout to complete and displays the status. Output shows when all pods have been restarted and are running with the new configuration.*
+
+#### Step 4: Expose the ArgoCD UI via Port-Forward (Test Case 2)
+
+Run this command in a **dedicated terminal** (it runs in the foreground):
+
+```bash
+kubectl port-forward svc/argocd-server -n argocd 8080:80
+```
+
+*Purpose: Creates a port-forward tunnel from your local machine port 8080 to the ArgoCD server service port 80 (HTTP, enabled by Step 3). The terminal will display a message indicating the port-forward is active.*
+
+**Important Notes**:
+- Keep this terminal open while accessing ArgoCD
+- The ArgoCD UI is now accessible at **`http://localhost:8080`** in your browser
+- If port 8080 is already in use by Docker Compose or another service, use an alternative port: `kubectl port-forward svc/argocd-server -n argocd 8090:80` and access via `http://localhost:8090`
+
+**Test Case 2 Verification**: Open your browser and navigate to `http://localhost:8080`. The ArgoCD login page should load without TLS warnings.
+
+#### Step 5: Retrieve the Initial Admin Password
+
+In a **new terminal** (while keeping the port-forward running):
+
+**Linux/macOS/WSL:**
+```bash
+kubectl get secret argocd-initial-admin-secret -n argocd -o jsonpath="{.data.password}" | base64 -d && echo
+```
+
+**Windows PowerShell:**
+```powershell
+$encoded = kubectl get secret argocd-initial-admin-secret -n argocd -o jsonpath="{.data.password}"
+[System.Text.Encoding]::UTF8.GetString([System.Convert]::FromBase64String($encoded))
+```
+
+*Purpose: Retrieves the base64-encoded initial admin password from the `argocd-initial-admin-secret` Secret and decodes it. Copy this password — you'll need it to login to both the web UI and CLI.*
+
+#### Step 6: Install the ArgoCD CLI
+
+**Windows (Chocolatey):**
+```powershell
+choco install argocd-cli
+```
+
+**Windows (winget):**
+```powershell
+winget install ArgoProj.argocd
+```
+
+**Windows (Manual Download):**
+1. Go to [ArgoCD GitHub Releases](https://github.com/argoproj/argo-cd/releases/latest)
+2. Download `argocd-windows-amd64.exe`
+3. Rename to `argocd.exe`
+4. Add to your `PATH` environment variable
+
+**Verify installation:**
+```bash
+argocd version --client
+```
+
+*Purpose: Displays the installed ArgoCD CLI version to confirm successful installation.*
+
+#### Step 7: Login with ArgoCD CLI and Verify (Test Case 3)
+
+Login using your credentials (use the password retrieved in Step 5):
+
+```bash
+argocd login localhost:8080 --username admin --password <your-password>
+```
+
+*Purpose: Authenticates the ArgoCD CLI against the local ArgoCD server. Since HTTP mode is enabled (Step 3), no `--insecure` flag is needed. Replace `<your-password>` with the actual password from Step 5.*
+
+Verify successful authentication by listing all ArgoCD applications:
+
+```bash
+argocd app list
+```
+
+*Purpose: Retrieves and displays all applications managed by ArgoCD. If successful, this confirms the CLI has authenticated and can communicate with the server.*
+
+**Expected Output** (empty list is normal on fresh installation):
+```
+NAME  CLUSTER  NAMESPACE  PROJECT  STATUS  HEALTH  SYNCPOLICY  CONDITIONS  REPO  PATH  TARGET
+```
+
+**Test Case 3 Verification**: Command executes successfully with no authentication errors. Either an empty list or existing applications confirms successful CLI login.
+
+#### Summary of All Commands in Execution Order
+
+```bash
+# 1. Install ArgoCD
+kubectl create namespace argocd
+kubectl apply -n argocd -f https://raw.githubusercontent.com/argoproj/argo-cd/stable/manifests/install.yaml
+
+# 2. Wait for all pods (Test Case 1)
+kubectl wait --for=condition=Ready pods --all -n argocd --timeout=300s
+kubectl get pods -n argocd
+
+# 3. Enable HTTP mode
+kubectl patch configmap argocd-cmd-params-cm -n argocd --type merge --patch-file argocd-patch.yaml
+kubectl rollout restart deployment argocd-server -n argocd
+kubectl rollout status deployment argocd-server -n argocd
+
+# 4. Port-forward (Test Case 2) — keep this terminal open
+kubectl port-forward svc/argocd-server -n argocd 8080:80
+
+# 5. Get password (in new terminal)
+kubectl get secret argocd-initial-admin-secret -n argocd -o jsonpath="{.data.password}" | base64 -d && echo
+
+# 6. Install ArgoCD CLI (if not already installed)
+choco install argocd-cli  # Windows with Chocolatey
+
+# 7. Login and verify (Test Case 3)
+argocd login localhost:8080 --username admin --password <password>
+argocd app list
+```
+
+#### Troubleshooting
+
+| Issue | Cause | Solution |
+|---|---|---|
+| Port 8080 already in use | Docker Compose or another service running on port 8080 | Stop Docker Compose with `docker-compose down` or use alternative port: `kubectl port-forward svc/argocd-server -n argocd 8090:80` |
+| Pods stuck in `Pending` | Insufficient cluster resources | Scale up k3d: `k3d cluster edit todo-cluster --agents-memory 4g` |
+| `ImagePullBackOff` errors | No internet access from Docker network | Verify Docker has internet connectivity and re-run the ArgoCD install |
+| Port-forward disconnects | Network timeout or terminal closed | Restart the port-forward command |
+| `argocd login` fails | ArgoCD server not ready or password incorrect | Wait for rollout to complete, verify the password, or check logs: `kubectl logs -n argocd deployment/argocd-server` |
+| ConfigMap patch fails (BadRequest error) | JSON quoting/escaping issues in inline patch | Use the `argocd-patch.yaml` file approach as described in Step 3 |
+
+#### Quick ArgoCD Operations
+
+```bash
+# View ArgoCD logs
+kubectl logs -n argocd -f deployment/argocd-server
+
+# Describe ArgoCD server pod
+kubectl describe pod -n argocd -l app.kubernetes.io/name=argocd-server
+
+# Access ArgoCD web UI
+# Open browser to http://localhost:8080 (with port-forward running)
+
+# Change ArgoCD admin password
+argocd account update-password --account admin --current-password <old-password> --new-password <new-password>
+
+# Delete all ArgoCD resources
+kubectl delete namespace argocd
+```
+
+---
+
 ### Database Setup & Migrations
+
 
 ```bash
 # Initialize Alembic (if not already done)
