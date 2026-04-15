@@ -1,0 +1,44 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: demo-service
+  namespace: {{ .Values.namespace }}
+  labels:
+    {{- include "todo-app.labels" . | nindent 4 }}
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: demo-service
+  template:
+    metadata:
+      labels:
+        app: demo-service
+    spec:
+      containers:
+        - name: demo-service
+          image: {{ .Values.demoService.image }}
+          ports:
+            - containerPort: 80
+          resources:
+            requests:
+              cpu: "50m"
+              memory: "64Mi"
+            limits:
+              cpu: "200m"
+              memory: "128Mi"
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: demo-service
+  namespace: {{ .Values.namespace }}
+  labels:
+    {{- include "todo-app.labels" . | nindent 4 }}
+spec:
+  selector:
+    app: demo-service
+  ports:
+    - port: 80
+      targetPort: 80
+  type: ClusterIP

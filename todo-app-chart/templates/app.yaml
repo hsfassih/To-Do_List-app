@@ -1,0 +1,134 @@
+# ── Headless Service (required for StatefulSet stable DNS) ──────────────────
+apiVersion: v1
+kind: Service
+metadata:
+  name: todo-app-headless
+  namespace: {{ .Values.namespace }}
+  labels:
+    {{- include "todo-app.labels" . | nindent 4 }}
+spec:
+  clusterIP: None
+  selector:
+    app: todo-app
+  ports:
+    - port: 8080
+      targetPort: 8080
+---
+# ── StatefulSet ──────────────────────────────────────────────────────────────
+apiVersion: apps/v1
+kind: StatefulSet
+metadata:
+  name: todo-app
+  namespace: {{ .Values.namespace }}
+  labels:
+    {{- include "todo-app.labels" . | nindent 4 }}
+spec:
+  serviceName: "todo-app-headless"
+  replicas: {{ .Values.replicaCount }}         # ← exposed in values.yaml
+  selector:
+    matchLabels:
+      app: todo-app
+  template:
+    metadata:
+      labels:
+        app: todo-app
+    spec:
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 1000
+        runAsGroup: 1000
+        fsGroup: 1000
+      containers:
+        - name: todo-app
+          image: "{{ .Values.image.repository }}:{{ .Values.image.tag }}"   # ← exposed
+          securityContext:
+            allowPrivilegeEscalation: false
+            readOnlyRootFilesystem: true
+            capabilities:
+              drop:
+                - ALL
+          imagePullPolicy: {{ .Values.image.pullPolicy }}
+          ports:
+            - containerPort: 8080
+          resources:
+            {{- toYaml .Values.resources | nindent 12 }}
+          envFrom:
+            - configMapRef:
+                name: app-config
+          env:
+            - name: secret_key
+              valueFrom:
+                secretKeyRef:
+                  name: todo-secret
+                  key: secret_key
+            - name: algorithm
+              valueFrom:
+                secretKeyRef:
+                  name: todo-secret
+                  key: algorithm
+            - name: access_token_expire_minutes
+              valueFrom:
+                secretKeyRef:
+                  name: todo-secret
+                  key: access_token_expire_minutes
+            - name: database_url
+              valueFrom:
+                secretKeyRef:
+                  name: todo-secret
+                  key: database_url
+            - name: redis_url
+              valueFrom:
+                secretKeyRef:
+                  name: todo-secret
+                  key: redis_url
+            - name: DB_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: todo-secret
+                  key: db_password
+          volumeMounts:
+            - mountPath: /tmp
+              name: tmp-dir
+            - mountPath: /app/data
+              name: sqlite-storage
+            - mountPath: /etc/app-config
+              name: app-config-volume
+              readOnly: true
+            - mountPath: /etc/secrets
+              name: app-secret-volume
+              readOnly: true
+      volumes:
+        - name: tmp-dir
+          emptyDir: {}
+        - name: app-config-volume
+          configMap:
+            name: app-config
+        - name: app-secret-volume
+          secret:
+            secretName: todo-secret
+  volumeClaimTemplates:
+    - metadata:
+        name: sqlite-storage
+      spec:
+        accessModes:
+          - ReadWriteOnce
+        storageClassName: {{ .Values.storage.storageClassName }}
+        resources:
+          requests:
+            storage: {{ .Values.storage.size }}
+---
+# ── ClusterIP Service ────────────────────────────────────────────────────────
+apiVersion: v1
+kind: Service
+metadata:
+  name: todo-app-service
+  namespace: {{ .Values.namespace }}
+  labels:
+    {{- include "todo-app.labels" . | nindent 4 }}
+spec:
+  selector:
+    app: todo-app
+  ports:
+    - port: {{ .Values.service.port }}
+      targetPort: {{ .Values.service.targetPort }}
+  type: ClusterIP

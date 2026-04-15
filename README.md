@@ -13,6 +13,7 @@ A production-ready RESTful To-Do List API built with **FastAPI**, featuring JWT 
   - [docker-compose](#docker-compose)
   - [k3d (Kubernetes with Local Cluster)](#k3d-kubernetes-with-local-cluster)
   - [kubectl (Kubernetes CLI)](#kubectl-kubernetes-cli)
+  - [Helm (Package Manager for Kubernetes)](#helm-package-manager-for-kubernetes)
 
 ---
 
@@ -575,6 +576,199 @@ kubectl apply -f k8s/app.yaml
 # Dry-run (see what would be applied without actually applying)
 kubectl apply -f k8s/ --dry-run=client
 ```
+
+### Helm (Package Manager for Kubernetes)
+
+Helm is a package manager for Kubernetes that simplifies deploying and managing applications. Use these commands to manage your Helm charts.
+
+#### Prerequisites
+
+- Helm installed ([Installation Guide](https://helm.sh/docs/intro/install/))
+- kubectl configured and connected to your Kubernetes cluster
+- The `todo-app-chart` Helm chart in your project directory
+
+#### 1. Verify Helm is installed
+
+```bash
+helm version
+```
+
+*Purpose: Displays the installed Helm version and verifies connectivity to the Kubernetes cluster.*
+
+#### 2. Lint the Helm chart (check for errors)
+
+```bash
+helm lint ./todo-app-chart
+```
+
+*Purpose: Validates the chart for syntax errors, missing fields, and best practices. Run before installing to catch issues early.*
+
+#### 3. Preview what the chart will render (dry-run)
+
+```bash
+helm template todo-app ./todo-app-chart --debug
+```
+
+*Purpose: Renders all templates and displays the final Kubernetes manifests without actually deploying them. Useful for debugging template issues.*
+
+#### 4. Install the Helm chart
+
+```bash
+helm install todo-app ./todo-app-chart -n todo-app --create-namespace
+```
+
+*Purpose: Installs the chart as a release named `todo-app` in the `todo-app` namespace. The `--create-namespace` flag creates the namespace if it doesn't exist.*
+
+#### 5. Install with custom values (override defaults)
+
+```bash
+helm install todo-app ./todo-app-chart -n todo-app --create-namespace \
+  --set replicaCount=5 \
+  --set image.tag=v1.0
+```
+
+*Purpose: Overrides specific values from `values.yaml`. Common overrides: `replicaCount` (number of pods), `image.tag` (Docker image version), `image.repository` (image URL).*
+
+#### 6. Verify the release was installed
+
+```bash
+helm list -n todo-app
+```
+
+*Purpose: Lists all Helm releases in the `todo-app` namespace with their status and revision number.*
+
+#### 7. View the status of a release
+
+```bash
+helm status todo-app -n todo-app
+```
+
+*Purpose: Shows detailed information about the deployed release, including resource names and deployment status.*
+
+#### 8. Get the values currently in use by a release
+
+```bash
+helm get values todo-app -n todo-app
+```
+
+*Purpose: Displays the actual values being used by the deployed release (merged from defaults and `--set` overrides).*
+
+#### 9. View all Kubernetes manifests for a release
+
+```bash
+helm get manifest todo-app -n todo-app
+```
+
+*Purpose: Shows all rendered Kubernetes YAML files for the deployed release.*
+
+#### 10. Upgrade a release (e.g., change replica count)
+
+```bash
+helm upgrade todo-app ./todo-app-chart -n todo-app --set replicaCount=7
+```
+
+*Purpose: Modifies an existing release without reinstalling. Useful for scaling, updating image tags, or changing configuration.*
+
+#### 11. Upgrade and reinstall if release doesn't exist
+
+```bash
+helm upgrade --install todo-app ./todo-app-chart -n todo-app --create-namespace
+```
+
+*Purpose: Installs the chart if it doesn't exist, or upgrades it if it does. Idempotent operation.*
+
+#### 12. View the release history
+
+```bash
+helm history todo-app -n todo-app
+```
+
+*Purpose: Shows all revisions of the release with timestamps, status, and descriptions. Useful for tracking changes.*
+
+#### 13. Roll back to a previous revision
+
+```bash
+helm rollback todo-app 1 -n todo-app
+```
+
+*Purpose: Reverts the release to a previous revision. Example: `helm rollback todo-app 1` rolls back to revision 1. Use `helm history` to see available revisions.*
+
+#### 14. Uninstall (delete) a release
+
+```bash
+helm uninstall todo-app -n todo-app
+```
+
+*Purpose: Removes the release from Kubernetes. By default, this keeps persistent volumes (data) intact. Use `--no-hooks` to skip pre-delete hooks.*
+
+#### 15. Uninstall and delete all resources including persistent volumes
+
+```bash
+helm uninstall todo-app -n todo-app --no-hooks
+```
+
+*Purpose: Deletes the release and removes all associated Kubernetes objects (pods, services, etc.).*
+
+#### 16. Search for available Helm charts (from repositories)
+
+```bash
+helm search repo redis
+```
+
+*Purpose: Searches installed Helm repositories for charts matching the query. Requires adding repos first.*
+
+#### 17. Add a Helm repository
+
+```bash
+helm repo add bitnami https://charts.bitnami.com/bitnami
+```
+
+*Purpose: Adds a remote Helm repository so you can install charts from it. Popular repos: Bitnami, Stable, etc.*
+
+#### 18. Update Helm repository cache
+
+```bash
+helm repo update
+```
+
+*Purpose: Fetches the latest chart metadata from all added repositories.*
+
+#### 19. List all added Helm repositories
+
+```bash
+helm repo list
+```
+
+*Purpose: Shows all configured Helm repositories and their URLs.*
+
+#### 20. Test Helm chart templates with a values file
+
+```bash
+helm template todo-app ./todo-app-chart -f custom-values.yaml
+```
+
+*Purpose: Renders templates using a custom values file instead of the default `values.yaml`. Useful for testing different configurations.*
+
+#### Quick Reference Commands
+
+```bash
+# Full deployment workflow
+helm lint ./todo-app-chart
+helm template todo-app ./todo-app-chart --debug
+helm install todo-app ./todo-app-chart -n todo-app --create-namespace
+helm status todo-app -n todo-app
+helm list -n todo-app
+
+# Upgrade and rollback workflow
+helm upgrade todo-app ./todo-app-chart -n todo-app --set replicaCount=5
+helm history todo-app -n todo-app
+helm rollback todo-app 1 -n todo-app
+
+# Cleanup
+helm uninstall todo-app -n todo-app
+```
+
+---
 
 ### Database Setup & Migrations
 
