@@ -1,0 +1,25 @@
+namespace: todo-prod
+replicaCount: 3
+
+resources:
+  limits:
+    cpu: "1000m"
+    memory: "1Gi"
+
+redis:
+  resources:
+    limits:
+      cpu: "500m"
+      memory: "512Mi"
+
+ingress:
+  appHost: api.todo.local
+  demoHost: demo.todo.local
+
+config:
+  appEnv: "production"
+  logLevel: "info"
+
+secret:
+  secretKey: "prod-secret-key"
+  databaseUrl: "sqlite+aiosqlite:////app/data/todo_list.db"

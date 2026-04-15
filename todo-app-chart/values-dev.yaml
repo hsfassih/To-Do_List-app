@@ -1,0 +1,25 @@
+namespace: todo-dev
+replicaCount: 1
+
+resources:
+  limits:
+    cpu: "200m"
+    memory: "256Mi"
+
+redis:
+  resources:
+    limits:
+      cpu: "100m"
+      memory: "128Mi"
+
+ingress:
+  appHost: api.dev.todo.local
+  demoHost: demo.dev.todo.local
+
+config:
+  appEnv: "development"
+  logLevel: "debug"
+
+secret:
+  secretKey: "dev-secret-key"
+  databaseUrl: "sqlite+aiosqlite:////app/data/todo_dev.db"
