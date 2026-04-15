@@ -29,7 +29,7 @@ ENV PYTHONPATH=/app/src
 ENV PYTHONUNBUFFERED=1
 
 # transferring ownership to app user for logging permission
-RUN useradd app && chown -R app:app /app
+RUN useradd -u 1000 app && chown -R app:app /app
 USER app
 
 # executable and its args (ENTRPOINT + CMD), args are changable at runtime

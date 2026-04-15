@@ -8,8 +8,8 @@ logging.basicConfig(
     format="%(asctime)s - %(levelname)s - %(message)s",
     force=True,     # prioritize this logger instead of using the default
     handlers=[
-        # logging.StreamHandler(),    # defining stream to keep printing on terminal
-        logging.FileHandler("app.log", encoding="utf-8")       # defining a file handler to write logfile
+        logging.StreamHandler(),    # stdout — captured by the logging DaemonSet
+        # logging.FileHandler("app.log", encoding="utf-8")  # disabled: /app is read-only with readOnlyRootFilesystem
     ]
 )
 logger = logging.getLogger(__name__)
