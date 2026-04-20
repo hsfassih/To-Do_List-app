@@ -1,0 +1,9 @@
+# Local k3d registry overrides
+image:
+  repository: k3d-todo-registry:5000/todo-app
+  tag: "latest"
+  pullPolicy: IfNotPresent
+
+redis:
+  image: k3d-todo-registry:5000/redis:alpine
+

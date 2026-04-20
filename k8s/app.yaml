@@ -50,14 +50,14 @@ spec:
         fsGroup: 1000            # Ensures volume mounts (PVC) are owned by this GID
       containers:
         - name: todo-app
-          image: hsfassih/todo-app
+          image: k3d-todo-registry:5000/todo-app:latest # hsfassih/todo-app
           securityContext: # defining securitycontext at container level
             allowPrivilegeEscalation: false   # Prevents sudo, setuid binaries, etc.
             readOnlyRootFilesystem: true      # Makes / read-only
             capabilities:
               drop:
                 - ALL                         # Drops all Linux kernel capabilities, defence in depth; removes capabilities like NET_BIND_SERVICE, CHOWN, etc. that are granted by default.
-          imagePullPolicy: Always  # Change to Never if you used: k3d image import
+          imagePullPolicy: IfNotPresent # checks for local registry first. Change to Never if you used: k3d image import. Chnage to Always for dockerhub
           ports:
             - containerPort: 8080
           # logging: # added logging configuration
