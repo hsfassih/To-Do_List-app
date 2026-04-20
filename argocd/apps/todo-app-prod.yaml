@@ -1,0 +1,39 @@
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: todo-app-prod
+  namespace: argocd
+  # CR stands for Custom Resource.
+  # Cascade deletion: when this Application CR is deleted (e.g., pruned by root-app),
+  # ArgoCD first removes all cluster resources (pods, services, etc.) it manages.
+  finalizers:
+    - resources-finalizer.argocd.argoproj.io
+spec:
+  project: default
+
+  source:
+    repoURL: https://github.com/hsfassih/To-Do_List-app.git
+    targetRevision: main
+    path: todo-app-chart
+    helm:
+      valueFiles:
+        - values.yaml           # base values
+        - values-prod.yaml      # prod overrides (namespace: todo-prod, replicaCount: 3)
+
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: todo-prod        # must match .Values.namespace in values-prod.yaml
+
+  syncPolicy:
+    automated:
+      prune: true
+      selfHeal: true
+    syncOptions:
+      - CreateNamespace=true
+      - ServerSideApply=true
+    retry:
+      limit: 5
+      backoff:
+        duration: 5s
+        factor: 2
+        maxDuration: 3m

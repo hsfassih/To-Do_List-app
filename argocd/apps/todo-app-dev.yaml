@@ -1,0 +1,36 @@
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: todo-app-dev
+  namespace: argocd
+  finalizers:
+    - resources-finalizer.argocd.argoproj.io
+spec:
+  project: default
+
+  source:
+    repoURL: https://github.com/hsfassih/To-Do_List-app.git
+    targetRevision: main
+    path: todo-app-chart
+    helm:
+      valueFiles:
+        - values.yaml           # base values
+        - values-dev.yaml       # dev overrides (namespace: todo-dev, replicaCount: 1)
+
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: todo-dev         # must match .Values.namespace in values-dev.yaml
+
+  syncPolicy:
+    automated:
+      prune: true
+      selfHeal: true
+    syncOptions:
+      - CreateNamespace=true
+      - ServerSideApply=true
+    retry:
+      limit: 3
+      backoff:
+        duration: 5s
+        factor: 2
+        maxDuration: 2m

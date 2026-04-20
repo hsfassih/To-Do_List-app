@@ -1,0 +1,29 @@
+# argocd-root-app.yaml
+# Apply this ONCE manually: kubectl apply -f argocd-root-app.yaml
+# After that, Git is the source of truth for all child apps.
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: root-app
+  namespace: argocd
+  # When root-app is deleted, it cascades to delete all child apps it manages
+  finalizers:
+    - resources-finalizer.argocd.argoproj.io
+spec:
+  project: default
+
+  source:
+    repoURL: https://github.com/hsfassih/To-Do_List-app.git
+    targetRevision: main
+    path: argocd/apps          # watches this directory for child Application YAMLs
+
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: argocd          # ArgoCD Application CRs must live in the argocd namespace
+
+  syncPolicy:
+    automated:
+      prune: true              # TEST CASE 2: removing a YAML from Git deletes the child app
+      selfHeal: true           # reverts manual ArgoCD UI deletions back to Git state
+    syncOptions:
+      - CreateNamespace=true
