@@ -14,7 +14,7 @@ DB_NAME = "todo_list.db"
 DATABASE_URL = f"sqlite+aiosqlite:///{DB_DIR / DB_NAME}"
 engine = create_async_engine(DATABASE_URL)
 
-# DB AsyncSession Dependancy provider
+# DB AsyncSession Dependancy provider function
 async def get_db():
     db = AsyncSession(engine)
     try:
