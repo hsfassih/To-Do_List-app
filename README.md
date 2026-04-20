@@ -876,8 +876,7 @@ kubectl get secret argocd-initial-admin-secret -n argocd -o jsonpath="{.data.pas
 
 **Windows PowerShell:**
 ```powershell
-$encoded = kubectl get secret argocd-initial-admin-secret -n argocd -o jsonpath="{.data.password}"
-[System.Text.Encoding]::UTF8.GetString([System.Convert]::FromBase64String($encoded))
+[System.Text.Encoding]::UTF8.GetString([System.Convert]::FromBase64String($(kubectl -n argocd get secret argocd-initial-admin-secret -o jsonpath="{.data.password}")))
 ```
 
 *Purpose: Retrieves the base64-encoded initial admin password from the `argocd-initial-admin-secret` Secret and decodes it. Copy this password — you'll need it to login to both the web UI and CLI.*
