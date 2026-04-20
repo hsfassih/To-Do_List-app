@@ -19,12 +19,12 @@ class TaskService:
 
     async def create_task(self, task: Task) -> Task:
         if task.task_status not in VALID_STATUSES:
-            raise HTTPException(status_code=400, detail=f"Invalid status. Choose from {VALID_STATUSES}")
+            raise HTTPException(status_code=400, detail=f"Invalid status. You must Choose from {VALID_STATUSES}")
         return await self.repo.make_task(task)
 
     async def update_task_status(self, id: int, status: str) -> Task:
         if status not in VALID_STATUSES:
-            raise HTTPException(status_code=400, detail=f"Invalid status. Choose from {VALID_STATUSES}")
+            raise HTTPException(status_code=400, detail=f"Invalid status. You must Choose from {VALID_STATUSES}")
 
         task = await self.repo.get_by_id(id)
         if not task:
