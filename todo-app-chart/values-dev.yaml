@@ -22,4 +22,8 @@ config:
 
 secret:
   secretKey: "dev-secret-key"
+  algorithm: "HS256"                                          
+  accessTokenExpireMinutes: "30"                              
+  redisUrl: "redis://redis-service:6379"                     
   databaseUrl: "sqlite+aiosqlite:////app/data/todo_dev.db"
+  dbPassword: "dev-db-password"                               

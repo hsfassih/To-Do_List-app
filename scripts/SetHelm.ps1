@@ -6,6 +6,10 @@
     Default (no flags):
         Installs the Helm chart from todo-app-chart/ using the base values.yaml.
 
+    --ns <namespace>
+        Optional in install/deploy mode. Forces target namespace and also sets
+        chart value 'namespace=<namespace>' to keep resource metadata aligned.
+
     --upgrade --ns <namespace>
         Upgrades the existing Helm release in the given namespace.
         Example: .\SetHelm.ps1 --upgrade --ns todo-local
@@ -28,37 +32,67 @@ $ErrorActionPreference = "Stop"
 $ChartPath   = "./todo-app-chart"
 $ReleaseName = "todo-app"
 
-# ── Argument parsing ──────────────────────────────────────────────────────────
+# --- Argument parsing ---
 $DoUpgrade = $false
-$UpgradeNs = $null
+$TargetNs = $null
 $DeployValues = $null
 
 for ($i = 0; $i -lt $args.Count; $i++) {
     switch ($args[$i]) {
         "--upgrade" { $DoUpgrade = $true }
-        "--ns"      { $i++; $UpgradeNs = $args[$i] }
-        "--deploy"  { $i++; $DeployValues = $args[$i] }
+        "--ns" {
+            $i++
+            if ($i -ge $args.Count) {
+                throw "[ERROR] --ns requires a value."
+            }
+            $TargetNs = $args[$i]
+        }
+        "--deploy" {
+            $i++
+            if ($i -ge $args.Count) {
+                throw "[ERROR] --deploy requires a values file path."
+            }
+            $DeployValues = $args[$i]
+        }
+        default {
+            throw "[ERROR] Unknown argument: $($args[$i])"
+        }
     }
 }
 
-# ── Validate conflicting flags ────────────────────────────────────────────────
+# --- Validate argument combinations ---
 if ($DoUpgrade -and $DeployValues) {
-    Write-Error "[ERROR] --upgrade and --deploy cannot be used together."
-    exit 1
+    throw "[ERROR] --upgrade and --deploy cannot be used together."
 }
-if ($DoUpgrade -and -not $UpgradeNs) {
-    Write-Error "[ERROR] --upgrade requires --ns <namespace>."
-    exit 1
+if ($DoUpgrade -and -not $TargetNs) {
+    throw "[ERROR] --upgrade requires --ns <namespace>."
 }
 
-# ── Helper: resolve namespace from a values file ──────────────────────────────
-function Get-NamespaceFromValues([string]$valuesFile) {
-    $fullPath = Join-Path $ChartPath $valuesFile
-    if (-not (Test-Path $fullPath)) {
-        Write-Error "[ERROR] Values file not found: $fullPath"
-        exit 1
+# --- Helper: resolve values file path ---
+function Resolve-ValuesFilePath([string]$valuesFileInput) {
+    $candidates = @()
+
+    if ([System.IO.Path]::IsPathRooted($valuesFileInput)) {
+        $candidates += $valuesFileInput
+    } else {
+        # Candidate 1: exactly as supplied from current working directory.
+        $candidates += (Join-Path (Get-Location) $valuesFileInput)
+        # Candidate 2: relative to chart path.
+        $candidates += (Join-Path $ChartPath $valuesFileInput)
     }
-    $ns = Get-Content $fullPath |
+
+    foreach ($candidate in $candidates) {
+        if (Test-Path -LiteralPath $candidate) {
+            return (Resolve-Path -LiteralPath $candidate).Path
+        }
+    }
+
+    throw "[ERROR] Values file not found. Tried: $($candidates -join ', ')"
+}
+
+# --- Helper: resolve namespace from values file ---
+function Get-NamespaceFromValues([string]$valuesFilePath) {
+    $ns = Get-Content -LiteralPath $valuesFilePath |
           Where-Object { $_ -match '^\s*namespace\s*:\s*(\S+)' } |
           ForEach-Object { $Matches[1] } |
           Select-Object -First 1
@@ -66,7 +100,29 @@ function Get-NamespaceFromValues([string]$valuesFile) {
     return $ns
 }
 
-# ── Lint the chart before any operation ───────────────────────────────────────
+# --- Helper: run helm and fail properly on errors ---
+function Invoke-HelmUpsert([string]$namespace, [string]$valuesPath) {
+    $helmArgs = @(
+        "upgrade", "--install", $ReleaseName, $ChartPath,
+        "-n", $namespace,
+        "--create-namespace",
+        "--set", "namespace=$namespace"
+    )
+
+    if ($valuesPath) {
+        $helmArgs += @("-f", $valuesPath)
+    }
+
+    & helm @helmArgs
+    if ($LASTEXITCODE -ne 0) {
+        Write-Host "" 
+        Write-Host "[HINT] Existing non-Helm resources can block installation." -ForegroundColor Yellow
+        Write-Host "       If needed, clean namespace resources or deploy to a different namespace." -ForegroundColor Yellow
+        exit $LASTEXITCODE
+    }
+}
+
+# --- Lint the chart before any operation ---
 Write-Host "`n[Lint] Validating Helm chart..." -ForegroundColor Cyan
 helm lint $ChartPath
 if ($LASTEXITCODE -ne 0) {
@@ -74,46 +130,40 @@ if ($LASTEXITCODE -ne 0) {
     exit 1
 }
 
-# ─────────────────────────────────────────────────────────────────────────────
+# ============================================================================
 # MODE A: --upgrade --ns <namespace>
-# ─────────────────────────────────────────────────────────────────────────────
+# ============================================================================
 if ($DoUpgrade) {
-    Write-Host "`n[Upgrade] Upgrading release '$ReleaseName' in namespace '$UpgradeNs'..." -ForegroundColor Cyan
-    helm upgrade --install $ReleaseName $ChartPath `
-        -n $UpgradeNs `
-        --create-namespace
-    Write-Host "`n[OK] Release upgraded in namespace '$UpgradeNs'.`n" -ForegroundColor Green
-    helm status $ReleaseName -n $UpgradeNs
+    Write-Host "`n[Upgrade] Upgrading release '$ReleaseName' in namespace '$TargetNs'..." -ForegroundColor Cyan
+    Invoke-HelmUpsert -namespace $TargetNs -valuesPath $null
+    Write-Host "`n[OK] Release upgraded in namespace '$TargetNs'.`n" -ForegroundColor Green
+    helm status $ReleaseName -n $TargetNs
+    if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
     exit 0
 }
 
-# ─────────────────────────────────────────────────────────────────────────────
-# MODE B: --deploy <values-file>
-# ─────────────────────────────────────────────────────────────────────────────
+# ============================================================================
+# MODE B: --deploy <values-file> [--ns <namespace>]
+# ============================================================================
 if ($DeployValues) {
-    $valuesPath = Join-Path $ChartPath $DeployValues
-    if (-not (Test-Path $valuesPath)) {
-        Write-Error "[ERROR] Values file not found: $valuesPath"
-        exit 1
-    }
-    $ns = Get-NamespaceFromValues $DeployValues
+    $valuesPath = Resolve-ValuesFilePath $DeployValues
+    $nsFromFile = Get-NamespaceFromValues $valuesPath
+    $ns = if ($TargetNs) { $TargetNs } else { $nsFromFile }
+
     Write-Host "`n[Deploy] Deploying with '$DeployValues' into namespace '$ns'..." -ForegroundColor Cyan
-    helm upgrade --install $ReleaseName $ChartPath `
-        -n $ns `
-        --create-namespace `
-        -f $valuesPath
+    Invoke-HelmUpsert -namespace $ns -valuesPath $valuesPath
     Write-Host "`n[OK] Deployed with '$DeployValues' into namespace '$ns'.`n" -ForegroundColor Green
     helm status $ReleaseName -n $ns
+    if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
     exit 0
 }
 
-# ─────────────────────────────────────────────────────────────────────────────
-# MODE C: default install with base values.yaml
-# ─────────────────────────────────────────────────────────────────────────────
-$defaultNs = "todo-app"
-Write-Host "`n[Install] Installing Helm chart '$ReleaseName' into namespace '$defaultNs'..." -ForegroundColor Cyan
-helm upgrade --install $ReleaseName $ChartPath `
-    -n $defaultNs `
-    --create-namespace
-Write-Host "`n[OK] Chart installed in namespace '$defaultNs'.`n" -ForegroundColor Green
-helm status $ReleaseName -n $defaultNs
+# ============================================================================
+# MODE C: install with base values.yaml [--ns <namespace>]
+# ============================================================================
+$installNs = if ($TargetNs) { $TargetNs } else { "todo-app" }
+Write-Host "`n[Install] Installing Helm chart '$ReleaseName' into namespace '$installNs'..." -ForegroundColor Cyan
+Invoke-HelmUpsert -namespace $installNs -valuesPath $null
+Write-Host "`n[OK] Chart installed in namespace '$installNs'.`n" -ForegroundColor Green
+helm status $ReleaseName -n $installNs
+if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
