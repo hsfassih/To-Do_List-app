@@ -106,6 +106,8 @@ function Invoke-HelmUpsert([string]$namespace, [string]$valuesPath) {
         "upgrade", "--install", $ReleaseName, $ChartPath,
         "-n", $namespace,
         "--create-namespace",
+        "--take-ownership",
+        "--force-conflicts",
         "--set", "namespace=$namespace"
     )
 
