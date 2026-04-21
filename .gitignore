@@ -4,3 +4,8 @@
 app.log
 *.ipynb
 secret.yaml
+*.exe
+*.terraform/
+*.tfstate
+*.backup
+tfplan
