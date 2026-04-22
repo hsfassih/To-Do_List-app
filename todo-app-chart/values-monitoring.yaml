@@ -1,0 +1,57 @@
+# kube-prometheus-stack values tuned for K3d/K3s
+
+# --- Disable control-plane scrapers that don't work in K3s ---
+kubeControllerManager:
+  enabled: false
+kubeScheduler:
+  enabled: false
+kubeEtcd:
+  enabled: false
+kubeProxy:
+  enabled: false
+
+# --- Prometheus config ---
+prometheus:
+  prometheusSpec:
+    retention: 24h
+    resources:
+      requests:
+        cpu: "200m"
+        memory: "512Mi"
+      limits:
+        cpu: "500m"
+        memory: "1Gi"
+
+# --- Grafana config ---
+grafana:
+  adminPassword: "admin"   # change in production
+  service:
+    type: ClusterIP
+  persistence:
+    enabled: false         # disable for local K3d (no persistent storage needed)
+  resources:
+    requests:
+      cpu: "100m"
+      memory: "128Mi"
+    limits:
+      cpu: "200m"
+      memory: "256Mi"
+
+# --- Alertmanager (lightweight for local) ---
+alertmanager:
+  alertmanagerSpec:
+    resources:
+      requests:
+        cpu: "50m"
+        memory: "64Mi"
+      limits:
+        cpu: "100m"
+        memory: "128Mi"
+
+# --- Node exporter ---
+nodeExporter:
+  enabled: true
+
+# --- kube-state-metrics ---
+kubeStateMetrics:
+  enabled: true
