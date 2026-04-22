@@ -9,4 +9,4 @@ secret.yaml
 *.tfstate
 *.backup
 tfplan
-/memory-bank
+*/memory-bank/
