@@ -1,0 +1,28 @@
+apiVersion: monitoring.coreos.com/v1
+kind: PrometheusRule
+metadata:
+  name: todo-app-alerts
+  namespace: {{ .Values.namespace }}
+  labels:
+    release: kube-prometheus-stack   # must match Prometheus Operator's ruleSelector
+spec:
+  groups:
+    - name: todo-app.pod-restarts
+      rules:
+        - alert: PodRestartingTooOften
+          expr: |
+            increase(kube_pod_container_status_restarts_total{
+              namespace="{{ .Values.namespace }}"
+            }[10m]) > 3
+          for: 1m
+          labels:
+            severity: warning
+            namespace: "{{ "{{" }} $labels.namespace {{ "}}" }}"
+            pod: "{{ "{{" }} $labels.pod {{ "}}" }}"
+          annotations:
+            summary: >-
+              Pod {{ "{{" }} $labels.pod {{ "}}" }} is restarting too often
+            description: >-
+              Pod {{ "{{" }} $labels.pod {{ "}}" }} in namespace
+              {{ "{{" }} $labels.namespace {{ "}}" }} has restarted
+              {{ "{{" }} $value | printf "%.0f" {{ "}}" }} times in the last 10 minutes.
