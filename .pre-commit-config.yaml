@@ -1,0 +1,11 @@
+# Pre-commit hooks configuration
+# Install with: pre-commit install
+
+repos:
+  # Black - Python code formatter
+  - repo: https://github.com/psf/black
+    rev: 26.3.1
+    hooks:
+      - id: black
+        language_version: python3.14
+        args: ['--line-length=200']
