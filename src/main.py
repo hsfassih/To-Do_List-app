@@ -6,7 +6,7 @@ from users.repository import UserRepo
 from auth.dependancies import require_admin, get_current_user
 from auth.database import get_db, engine
 from auth.utils import get_pswrd_hash
-from auth.schemas import RegisterRequest, LoginRequest, UserRequest 
+from auth.schemas import RegisterRequest, LoginRequest, UserRequest
 from middleware import RequestIDMiddleware, RequestLogMiddleware
 from seed.initial_data import users_db, tasks_db
 from users.service import UserService
@@ -33,19 +33,26 @@ LOCAL_REDIS_URL = os.getenv("local_redis_url")
 
 limiter = Limiter(key_func=get_remote_address)
 
+
 # initialize database on every application startup
 @asynccontextmanager
-async def lifespan  ( app :   FastAPI ):
+async def lifespan(app: FastAPI):
     # redis cache initialization on startup
-    redis=aioredis.from_url (settings.redis_url)
-    FastAPICache.init   (RedisBackend(redis), prefix="fastapi-cache")
+    redis = aioredis.from_url(settings.redis_url)
+    FastAPICache.init(RedisBackend(redis), prefix="fastapi-cache")
     print(f"Redis cache initialized | {settings.redis_url}")
-    
+
     # inspect using run_sync to bridge async → sync
     async with engine.connect() as conn:
-        existing_tables = await conn.run_sync(lambda sync_conn: inspect(sync_conn).get_table_names())
+        existing_tables = await conn.run_sync(
+            lambda sync_conn: inspect(sync_conn).get_table_names()
+        )
 
-    if not existing_tables or "user" not in existing_tables or "task" not in existing_tables:
+    if (
+        not existing_tables
+        or "user" not in existing_tables
+        or "task" not in existing_tables
+    ):
         # create_all also needs run_sync to bridge
         async with engine.begin() as conn:
             await conn.run_sync(SQLModel.metadata.create_all)
@@ -56,8 +63,8 @@ async def lifespan  ( app :   FastAPI ):
                     id=user["id"],
                     full_name=user["full_name"],
                     username=user["username"],
-                    hashed_pswrd= get_pswrd_hash(user["password"]),
-                    role=user["role"]
+                    hashed_pswrd=get_pswrd_hash(user["password"]),
+                    role=user["role"],
                 )
                 startup_session.add(user)
             for task in tasks_db:
@@ -66,7 +73,7 @@ async def lifespan  ( app :   FastAPI ):
                     assigner=task["assigner"],
                     assignee=task["assignee"],
                     detail=task["detail"],
-                    task_status=task["task_status"]
+                    task_status=task["task_status"],
                 )
                 startup_session.add(task)
             await startup_session.commit()
@@ -74,7 +81,8 @@ async def lifespan  ( app :   FastAPI ):
     else:
         print("both tables already exist")
 
-    yield # necessary
+    yield  # necessary
+
 
 router = APIRouter(prefix="/api/v1")
 app = FastAPI(lifespan=lifespan)
@@ -85,8 +93,8 @@ app.add_middleware(RequestLogMiddleware)
 app.add_middleware(RequestIDMiddleware)
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],       # all origins allowed in development
-    allow_credentials=False,   # must be False when allow_origins=["*"]
+    allow_origins=["*"],  # all origins allowed in development
+    allow_credentials=False,  # must be False when allow_origins=["*"]
     allow_methods=["*"],
     allow_headers=["*"],
 )
@@ -94,67 +102,100 @@ app.add_middleware(
 
 # Non-Functinoal Endpoints (for Authentication & Authorization)
 @router.post("/auth/register")
-async def register(data:RegisterRequest, session:AsyncSession = Depends(get_db)):
+async def register(data: RegisterRequest, session: AsyncSession = Depends(get_db)):
     service = UserService(UserRepo(session))
     return await service.register(data)
 
+
 @router.post("/auth/login")
-async def login(data:LoginRequest, session:AsyncSession = Depends(get_db)):
+async def login(data: LoginRequest, session: AsyncSession = Depends(get_db)):
     service = UserService(UserRepo(session))
     return await service.login(data)
+
 
 # Functional Endpoints
 @router.get("/")
 async def home_page():
-    return {
-        "home page": "hello world"
-    }
+    return {"home page": "hello world"}
+
 
 # user routes
 
+
 @router.get("/users")
 @limiter.limit("5/minute")
-async def all_users(request:Request, db_session: AsyncSession = Depends(get_db)):
+async def all_users(request: Request, db_session: AsyncSession = Depends(get_db)):
     service = UserService(UserRepo(db_session))
     return await service.get_all_users()
 
-@router.post("/users/create") # admin endpoint
-async def create_user(user:UserRequest, db_session:AsyncSession = Depends(get_db), current_user:User = Depends(require_admin)):
+
+@router.post("/users/create")  # admin endpoint
+async def create_user(
+    user: UserRequest,
+    db_session: AsyncSession = Depends(get_db),
+    current_user: User = Depends(require_admin),
+):
     service = UserService(UserRepo(db_session))
     return await service.create_user(user)
 
+
 @router.put("/users/update{username}")
-async def update_user(username:str, role:str, db_session:AsyncSession = Depends(get_db),  current_user:User = Depends(require_admin)):
+async def update_user(
+    username: str,
+    role: str,
+    db_session: AsyncSession = Depends(get_db),
+    current_user: User = Depends(require_admin),
+):
     service = UserService(UserRepo(db_session))
     return await service.update_user_role(username, role)
 
+
 @router.delete("/users/delete{username}")
-async def delete_user(username:str, db_session:AsyncSession = Depends(get_db), current_user:User = Depends(require_admin)):
+async def delete_user(
+    username: str,
+    db_session: AsyncSession = Depends(get_db),
+    current_user: User = Depends(require_admin),
+):
     service = UserService(UserRepo(db_session))
     return await service.delete_user(username)
 
+
 # Task routes
+
 
 @router.get("/tasks")
 @cache(expire=30)
-async def all_tasks(response:Response, db_session: AsyncSession = Depends(get_db)):
+async def all_tasks(response: Response, db_session: AsyncSession = Depends(get_db)):
     service = TaskService(TaskRepository(db_session))
     return await service.get_all_tasks()
 
+
 @router.post("/tasks/create")
-async def create_task(task:Task, db_session:AsyncSession = Depends(get_db)):
+async def create_task(task: Task, db_session: AsyncSession = Depends(get_db)):
     service = TaskService(TaskRepository(db_session))
     return await service.create_task(task)
 
-@router.put("/tasks/update{id}") # protected endpoint
-async def update_task(id:int, status:str, db_session:AsyncSession = Depends(get_db), current_user:User = Depends(get_current_user)):
+
+@router.put("/tasks/update{id}")  # protected endpoint
+async def update_task(
+    id: int,
+    status: str,
+    db_session: AsyncSession = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
     service = TaskService(TaskRepository(db_session))
     return await service.update_task_status(id, status)
 
-@router.delete("/tasks/delete{id}") # admin endpoint
-async def delete_task(id:int, db_session:AsyncSession = Depends(get_db), current_user:User = Depends(require_admin)):
+
+@router.delete("/tasks/delete{id}")  # admin endpoint
+async def delete_task(
+    id: int,
+    db_session: AsyncSession = Depends(get_db),
+    current_user: User = Depends(require_admin),
+):
     service = TaskService(TaskRepository(db_session))
     return await service.delete_task(id)
+
 
 app.include_router(router)
 
