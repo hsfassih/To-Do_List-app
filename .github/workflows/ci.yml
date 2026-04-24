@@ -6,6 +6,12 @@ permissions: # for the workflow to _ repository
   contents: read
 
 jobs:
+  lint:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v6
+      - uses: psf/black@c6755bb741b6481d6b3d3bb563c83fa060db96c9
+      
   build:
     runs-on: ubuntu-latest
     
