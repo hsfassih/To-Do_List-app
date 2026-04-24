@@ -59,6 +59,7 @@ Write-Host "       Image successfully pushed to local registry." -ForegroundColo
 # --- Step 4: Apply all k8s/ manifests ---
 Write-Host "`n[4/5] Applying all manifests in k8s/..." -ForegroundColor Cyan
 kubectl apply -f k8s/
+kubectl apply -f k8s/
 
 # --- Step 5: Wait for pods and print status ---
 Write-Host "`n[5/5] Waiting for pods to be Ready in namespace '$Namespace' (timeout: 120s)..." -ForegroundColor Cyan
