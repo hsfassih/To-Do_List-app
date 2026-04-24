@@ -21,6 +21,12 @@ ingress:
   appHost: api.todo.local
   demoHost: demo.todo.local
 
+# ─── Monitoring / Alerts ────────────────────────────────────────────────────
+monitoring:
+  prometheusRule:
+    enabled: true
+    releaseLabel: kube-prometheus-stack
+
 # ─── Resource limits (todo-app container) ────────────────────────────────────
 resources:
   requests:

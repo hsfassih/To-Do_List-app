@@ -1,10 +1,15 @@
+{{- $monitoring := (get .Values "monitoring" | default dict) -}}
+{{- $prometheusRule := (get $monitoring "prometheusRule" | default dict) -}}
+{{- $prometheusRuleEnabled := (get $prometheusRule "enabled" | default true) -}}
+{{- $prometheusRuleReleaseLabel := (get $prometheusRule "releaseLabel" | default "kube-prometheus-stack") -}}
+{{- if and $prometheusRuleEnabled (.Capabilities.APIVersions.Has "monitoring.coreos.com/v1/PrometheusRule") }}
 apiVersion: monitoring.coreos.com/v1
 kind: PrometheusRule
 metadata:
   name: todo-app-alerts
   namespace: {{ .Values.namespace }}
   labels:
-    release: kube-prometheus-stack   # must match Prometheus Operator's ruleSelector
+    release: {{ $prometheusRuleReleaseLabel | quote }}
 spec:
   groups:
     - name: todo-app.pod-restarts
@@ -26,3 +31,4 @@ spec:
               Pod {{ "{{" }} $labels.pod {{ "}}" }} in namespace
               {{ "{{" }} $labels.namespace {{ "}}" }} has restarted
               {{ "{{" }} $value | printf "%.0f" {{ "}}" }} times in the last 10 minutes.
+{{- end }}

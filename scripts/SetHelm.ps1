@@ -100,19 +100,76 @@ function Get-NamespaceFromValues([string]$valuesFilePath) {
     return $ns
 }
 
+# --- Helper: check whether an API resource exists in a group ---
+function Test-ApiResource([string]$apiGroup, [string]$resourceName) {
+    $resources = & kubectl api-resources --api-group=$apiGroup -o name
+    if ($LASTEXITCODE -ne 0) {
+        return $false
+    }
+    return ($resources -contains $resourceName)
+}
+
+# --- Helper: check if a Helm release already exists in namespace ---
+function Test-HelmReleaseExists([string]$namespace, [string]$releaseName) {
+    $releases = & helm list -n $namespace -q --filter "^$releaseName$"
+    if ($LASTEXITCODE -ne 0) {
+        return $false
+    }
+    return ($releases -contains $releaseName)
+}
+
+# --- Helper: remove non-Helm StatefulSet that blocks first Helm install ---
+function Remove-ConflictingStatefulSetIfNeeded([string]$namespace, [string]$statefulSetName) {
+    $existing = & kubectl get statefulset $statefulSetName -n $namespace --ignore-not-found -o name
+    if ($LASTEXITCODE -ne 0 -or -not $existing) {
+        return
+    }
+
+    $managedBy = & kubectl get statefulset $statefulSetName -n $namespace -o jsonpath="{.metadata.labels.app\.kubernetes\.io/managed-by}"
+    if ($LASTEXITCODE -ne 0) {
+        throw "[ERROR] Failed to inspect ownership label on StatefulSet '$statefulSetName' in namespace '$namespace'."
+    }
+
+    if ($managedBy -ne "Helm") {
+        Write-Host "[WARN] Found non-Helm StatefulSet '$statefulSetName' in namespace '$namespace'." -ForegroundColor Yellow
+        Write-Host "       Deleting it to allow Helm install/upgrade adoption (PVCs are preserved)." -ForegroundColor Yellow
+        & kubectl delete statefulset $statefulSetName -n $namespace --wait=true
+        if ($LASTEXITCODE -ne 0) {
+            throw "[ERROR] Failed to delete conflicting StatefulSet '$statefulSetName' in namespace '$namespace'."
+        }
+    }
+}
+
+$PrometheusRuleCrdName = "prometheusrules"
+$HasPrometheusRuleCrd = Test-ApiResource -apiGroup "monitoring.coreos.com" -resourceName $PrometheusRuleCrdName
+if (-not $HasPrometheusRuleCrd) {
+    Write-Host "[WARN] '$PrometheusRuleCrdName.monitoring.coreos.com' is not installed in this cluster." -ForegroundColor Yellow
+    Write-Host "       PrometheusRule creation will be disabled for this deployment." -ForegroundColor Yellow
+}
+
 # --- Helper: run helm and fail properly on errors ---
 function Invoke-HelmUpsert([string]$namespace, [string]$valuesPath) {
+    $releaseExists = Test-HelmReleaseExists -namespace $namespace -releaseName $ReleaseName
+    if (-not $releaseExists) {
+        Remove-ConflictingStatefulSetIfNeeded -namespace $namespace -statefulSetName $ReleaseName
+    }
+
     $helmArgs = @(
         "upgrade", "--install", $ReleaseName, $ChartPath,
         "-n", $namespace,
         "--create-namespace",
         "--take-ownership",
+        "--server-side=true",
         "--force-conflicts",
         "--set", "namespace=$namespace"
     )
 
     if ($valuesPath) {
         $helmArgs += @("-f", $valuesPath)
+    }
+
+    if (-not $HasPrometheusRuleCrd) {
+        $helmArgs += @("--set", "monitoring.prometheusRule.enabled=false")
     }
 
     & helm @helmArgs

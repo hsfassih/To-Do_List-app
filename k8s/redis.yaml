@@ -16,7 +16,7 @@ spec:
     spec:
       containers:
         - name: redis
-          image: k3d-todo-registry:5000/redis:alpine # redis:alpine
+          image: todo-registry:5000/redis:alpine # redis:alpine
           ports:
             - containerPort: 6379
           readinessProbe:

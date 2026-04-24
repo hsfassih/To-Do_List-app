@@ -50,7 +50,7 @@ spec:
         fsGroup: 1000            # Ensures volume mounts (PVC) are owned by this GID
       containers:
         - name: todo-app
-          image: k3d-todo-registry:5000/todo-app:latest # hsfassih/todo-app
+          image: todo-registry:5000/todo-app:latest # hsfassih/todo-app
           securityContext: # defining securitycontext at container level
             allowPrivilegeEscalation: false   # Prevents sudo, setuid binaries, etc.
             readOnlyRootFilesystem: true      # Makes / read-only
