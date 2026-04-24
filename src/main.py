@@ -35,10 +35,10 @@ limiter = Limiter(key_func=get_remote_address)
 
 # initialize database on every application startup
 @asynccontextmanager
-async def lifespan(app:FastAPI):
+async def lifespan  ( app :   FastAPI ):
     # redis cache initialization on startup
-    redis = aioredis.from_url(settings.redis_url)
-    FastAPICache.init(RedisBackend(redis), prefix="fastapi-cache")
+    redis=aioredis.from_url (settings.redis_url)
+    FastAPICache.init   (RedisBackend(redis), prefix="fastapi-cache")
     print(f"Redis cache initialized | {settings.redis_url}")
     
     # inspect using run_sync to bridge async → sync
