@@ -98,7 +98,9 @@ if ($clusterExists) {
         --servers 1 --agents 2 `
         --registry-create "${RegistryCreateName}:${RegistryPort}" `
         --port "80:80@loadbalancer" `
-        --port "443:443@loadbalancer"
+        --port "443:443@loadbalancer" `
+        --k3s-arg "--disable=traefik@server:0" `
+        --k3s-arg "--disable=servicelb@server:0" 
     Assert-LastExitCode "k3d cluster create $ClusterName"
     Write-Host "       Cluster created with local registry at ${RegistryHost}:${RegistryPort}" -ForegroundColor Green
 }
