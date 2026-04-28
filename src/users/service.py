@@ -5,6 +5,7 @@ from users.models import User
 from auth.schemas import RegisterRequest, LoginRequest, UserRequest
 from auth.utils import create_access_token, verify_pswrd
 
+
 class UserService:
     def __init__(self, repo: UserRepo):
         self.repo = repo
@@ -20,7 +21,9 @@ class UserService:
     async def login(self, data: LoginRequest) -> dict:
         user = await self.repo.get_by_username(data.username)
         if not user or not verify_pswrd(data.plain_pswrd, user.hashed_pswrd):
-            raise HTTPException(status_code=401, detail="Incorrect username or password")
+            raise HTTPException(
+                status_code=401, detail="Incorrect username or password"
+            )
         access_token = create_access_token(data={"sub": user.username})
         return {"access_token": access_token, "token_type": "bearer"}
 
@@ -39,7 +42,9 @@ class UserService:
             raise HTTPException(status_code=404, detail=f"User '{username}' not found")
         allowed_roles = {"user", "admin"}
         if role not in allowed_roles:
-            raise HTTPException(status_code=400, detail=f"Invalid role. Choose from {allowed_roles}")
+            raise HTTPException(
+                status_code=400, detail=f"Invalid role. Choose from {allowed_roles}"
+            )
         return await self.repo.update_role(username, role)
 
     async def delete_user(self, username: str) -> bool:

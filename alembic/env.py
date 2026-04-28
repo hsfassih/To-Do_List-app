@@ -8,6 +8,7 @@ from sqlalchemy import pool
 
 from alembic import context
 from sqlmodel import SQLModel
+
 # this is the Alembic Config object, which provides
 # access to the values within the .ini file in use.
 config = context.config
@@ -61,12 +62,15 @@ async def run_async_migrations() -> None:
     )
     async with connectable.connect() as connection:
         await connection.run_sync(
-            lambda conn: context.configure(connection=conn, target_metadata=target_metadata)
+            lambda conn: context.configure(
+                connection=conn, target_metadata=target_metadata
+            )
         )
         async with connection.begin():
             await connection.run_sync(lambda conn: context.run_migrations())
 
     await connectable.dispose()
+
 
 def run_migrations_online() -> None:
     asyncio.run(run_async_migrations())

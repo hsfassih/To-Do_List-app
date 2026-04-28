@@ -21,7 +21,7 @@ from auth.database import get_db
 #     finally:
 #         await db.close()
 
-#utilities for password hashing
+# utilities for password hashing
 # password_hash = PasswordHash.recommended()
 # def verify_pswrd(plain_password, hashed_password):
 #     return password_hash.verify(plain_password, hashed_password)
@@ -54,12 +54,16 @@ from auth.database import get_db
 # utilities for authorization
 security = HTTPBearer()
 
-async def get_current_user(credentials:HTTPAuthorizationCredentials = Depends(security), session:AsyncSession = Depends(get_db)) -> User:
+
+async def get_current_user(
+    credentials: HTTPAuthorizationCredentials = Depends(security),
+    session: AsyncSession = Depends(get_db),
+) -> User:
     token = credentials.credentials
     username = verify_token(token)
     if username is None:
         raise HTTPException(status_code=401, detail="Invalid Token")
-    
+
     # fetch user from the database
     statement = select(User).where(User.username == username)
     result = await session.execute(statement)
@@ -68,7 +72,10 @@ async def get_current_user(credentials:HTTPAuthorizationCredentials = Depends(se
         raise HTTPException(status_code=401, detail="User not found")
     return user
 
-async def require_admin(crnt_user:User = Depends(get_current_user)) -> User: # already depends on logged in user
+
+async def require_admin(
+    crnt_user: User = Depends(get_current_user),
+) -> User:  # already depends on logged in user
     if crnt_user.role != "admin":
         raise HTTPException(status_code=403, detail="Admin access required")
     return crnt_user
