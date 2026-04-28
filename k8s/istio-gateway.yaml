@@ -1,0 +1,50 @@
+apiVersion: networking.istio.io/v1alpha3
+kind: Gateway
+metadata:
+  name: todo-gateway
+  namespace: todo-app
+spec:
+  selector:
+    istio: ingressgateway
+  servers:
+    - port:
+        number: 80
+        name: http
+        protocol: HTTP
+      hosts:
+        - "api.todo.local"
+        - "demo.todo.local"
+---
+apiVersion: networking.istio.io/v1alpha3
+kind: VirtualService
+metadata:
+  name: todo-app-vs
+  namespace: todo-app
+spec:
+  hosts:
+    - "api.todo.local"
+  gateways:
+    - todo-gateway
+  http:
+    - route:
+        - destination:
+            host: todo-app-service
+            port:
+              number: 80
+---
+apiVersion: networking.istio.io/v1alpha3
+kind: VirtualService
+metadata:
+  name: demo-vs
+  namespace: todo-app
+spec:
+  hosts:
+    - "demo.todo.local"
+  gateways:
+    - todo-gateway
+  http:
+    - route:
+        - destination:
+            host: demo-service
+            port:
+              number: 80

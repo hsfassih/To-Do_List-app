@@ -19,6 +19,7 @@ spec:
     metadata:
       labels:
         app: logging-agent
+        sidecar.istio.io/inject: "false"
       annotations:
         prometheus.io/scrape: "true"
         prometheus.io/port: "9100"

@@ -22,7 +22,8 @@ spec:
   selector:
     app: todo-app
   ports:
-  - port: 8080
+  - name: http
+    port: 8080
     targetPort: 8080
 
 # Application deployment -> Changed to StatefulSet from deployment
@@ -147,7 +148,8 @@ spec:
   selector:
     app: todo-app
   ports:
-    - port: 80
+    - name: http
+      port: 80
       targetPort: 8080
   type: ClusterIP
 
@@ -163,7 +165,8 @@ spec:
     app: todo-app
   type: NodePort
   ports:
-    - port: 80
+    - name: http
+      port: 80
       targetPort: 8080
       nodePort: 30080 # nodeport must be between 30000-32767
 
@@ -179,5 +182,6 @@ spec:
     app: todo-app
   type: LoadBalancer
   ports:
-    - port: 80
+    - name: http
+      port: 80
       targetPort: 8080

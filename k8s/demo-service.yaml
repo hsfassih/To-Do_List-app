@@ -13,6 +13,7 @@ spec:
     metadata:
       labels:
         app: demo-service
+        sidecar.istio.io/inject: "true"
     spec:
       containers:
         - name: demo-service
@@ -36,6 +37,7 @@ spec:
   selector:
     app: demo-service
   ports:
-    - port: 80
+    - name: http
+      port: 80
       targetPort: 80
   type: ClusterIP
