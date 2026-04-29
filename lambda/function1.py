@@ -1,6 +1,6 @@
 import json
 
 
-# testing workflow with a simple hello function at first
+# testing workflow fristly with a simple hello function
 def handler(event, context):
     return {"statusCode": 200, "body": json.dumps({"message": "Hello from Lambda!"})}
