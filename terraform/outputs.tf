@@ -9,3 +9,11 @@ output "bucket_arn" {
 output "bucket_url" {
   value = module.app_bucket.bucket_domain_name
 }
+
+output "lambda_function_name" {
+  value = module.lambda.function_name
+}
+
+output "lambda_function_arn" {
+  value = module.lambda.function_arn
+}

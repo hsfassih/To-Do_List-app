@@ -48,3 +48,13 @@ resource "aws_dynamodb_table" "terraform_locks" {
     ManagedBy = "terraform"
   }
 }
+
+module "lambda" {
+  source = "./modules/lambda"
+
+  function_name    = "todo-app-lambda"
+  s3_bucket        = var.bucket_name
+  s3_key           = "lambda/function.zip"
+  source_code_hash = var.lambda_source_hash
+  environment      = var.environment
+}
