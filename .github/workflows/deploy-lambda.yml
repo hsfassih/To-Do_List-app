@@ -9,7 +9,7 @@ on:
 
 permissions:
     contents: read
-    id-token: write     # required for OIDC auth (recommended over static keys)
+    id-token: write     # required for OIDC auth (better approach over static keys w.r.t security)
 
 jobs:
     deploy:
