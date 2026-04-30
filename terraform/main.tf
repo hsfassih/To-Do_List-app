@@ -36,7 +36,7 @@ module "app_bucket" {
 module "lambda" {
   source = "./modules/lambda"
 
-  function_name    = "todo-app-lambda"
+  function_name    = "hello-lambda"
   s3_bucket        = var.bucket_name
   s3_key           = "lambda/function.zip"
   source_code_hash = var.lambda_source_hash
