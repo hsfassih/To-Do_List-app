@@ -4,6 +4,7 @@ import boto3
 import awsgi
 from datetime import datetime
 from pathlib import Path
+from urllib.parse import parse_qs
 
 from flask import Flask, render_template_string
 
@@ -290,20 +291,49 @@ TEMPLATE = """
 
 def handler(event, context):
     event = event or {}
-    if "httpMethod" not in event and "requestContext" not in event:
-        event = {
-            "httpMethod": "GET",
-            "path": "/",
-            "headers": {},
-            "multiValueHeaders": {},
-            "queryStringParameters": {},
-            "multiValueQueryStringParameters": {},
-            "pathParameters": {},
-            "stageVariables": {},
-            "requestContext": {},
-            "body": None,
-            "isBase64Encoded": False,
-        }
+
+    if "httpMethod" not in event:
+        request_context = event.get("requestContext") or {}
+        http_context = request_context.get("http") or {}
+        method = http_context.get("method")
+
+        if method:
+            raw_query = event.get("rawQueryString") or ""
+            multi_query = parse_qs(raw_query, keep_blank_values=True)
+            single_query = {
+                key: values[-1] if values else "" for key, values in multi_query.items()
+            }
+
+            headers = event.get("headers") or {}
+            event = {
+                "resource": event.get("rawPath") or "/",
+                "path": event.get("rawPath") or http_context.get("path") or "/",
+                "httpMethod": method,
+                "headers": headers,
+                "multiValueHeaders": {key: [value] for key, value in headers.items()},
+                "queryStringParameters": single_query or None,
+                "multiValueQueryStringParameters": multi_query or None,
+                "pathParameters": event.get("pathParameters") or {},
+                "stageVariables": event.get("stageVariables") or {},
+                "requestContext": request_context,
+                "body": event.get("body"),
+                "isBase64Encoded": event.get("isBase64Encoded", False),
+            }
+        else:
+            event = {
+                "httpMethod": "GET",
+                "path": "/",
+                "headers": {},
+                "multiValueHeaders": {},
+                "queryStringParameters": {},
+                "multiValueQueryStringParameters": {},
+                "pathParameters": {},
+                "stageVariables": {},
+                "requestContext": {},
+                "body": None,
+                "isBase64Encoded": False,
+            }
+
     return awsgi.response(app, event, context)
 
 

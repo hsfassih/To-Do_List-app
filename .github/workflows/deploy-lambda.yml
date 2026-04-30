@@ -85,3 +85,7 @@ jobs:
                     -var="getnewsfeed_source_hash=${{ steps.hashes.outputs.getnewsfeed }}" \
                     -var="displaynews_source_hash=${{ steps.hashes.outputs.displaynews }}" \
                     -var="environment=prod"
+
+            -   name: Show Display News URL
+                working-directory: terraform
+                run: terraform output -raw displaynews_function_url

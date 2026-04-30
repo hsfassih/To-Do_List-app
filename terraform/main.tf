@@ -69,3 +69,16 @@ module "lambda_displaynews" {
   timeout_seconds  = 15
   secret_arn       = "arn:aws:secretsmanager:us-east-1:957921932357:secret:todo-app/thenewsapi-token-y27FXL"
 }
+
+resource "aws_lambda_function_url" "displaynews" {
+  function_name      = module.lambda_displaynews.function_name
+  authorization_type = "NONE"
+}
+
+resource "aws_lambda_permission" "displaynews_function_url" {
+  statement_id            = "AllowPublicFunctionUrlInvoke"
+  action                  = "lambda:InvokeFunctionUrl"
+  function_name           = module.lambda_displaynews.function_name
+  principal               = "*"
+  function_url_auth_type  = "NONE"
+}
