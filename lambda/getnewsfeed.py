@@ -26,7 +26,12 @@ def _get_api_token():
 
 
 THE_NEWS_API_URL = "https://api.thenewsapi.com/v1/news/top"
-NEWSFEED_FILE = Path(__file__).parent / "newsfeed.txt"
+IS_LAMBDA_RUNTIME = "AWS_LAMBDA_FUNCTION_NAME" in os.environ
+NEWSFEED_FILE = (
+    Path("/tmp/newsfeed.txt")
+    if IS_LAMBDA_RUNTIME
+    else Path(__file__).parent / "newsfeed.txt"
+)
 
 
 def _render_newsfeed_text(payload):
