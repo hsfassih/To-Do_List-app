@@ -48,6 +48,7 @@ resource "aws_lambda_function" "this" {
   role             = aws_iam_role.lambda_exec.arn
   handler          = var.handler
   runtime          = var.runtime
+  timeout          = var.timeout_seconds
   s3_bucket        = var.s3_bucket
   s3_key           = var.s3_key
   source_code_hash = var.source_code_hash

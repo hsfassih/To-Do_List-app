@@ -31,6 +31,11 @@ variable "handler" {
     default = "function1.handler"
 }
 
+variable "timeout_seconds" {
+        type = number
+        default = 10
+}
+
 variable "secret_arn" {
   type    = string
   default = ""

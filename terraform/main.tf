@@ -41,6 +41,7 @@ module "lambda" {
   s3_key           = "lambda/function.zip"
   source_code_hash = var.lambda_source_hash
   environment      = var.environment
+  timeout_seconds  = 10
 }
 
 module "lambda_getnewsfeed" {
@@ -52,6 +53,7 @@ module "lambda_getnewsfeed" {
   source_code_hash = var.getnewsfeed_source_hash
   environment      = var.environment
   handler          = "getnewsfeed.handler"
+  timeout_seconds  = 30
   secret_arn       = "arn:aws:secretsmanager:us-east-1:957921932357:secret:todo-app/thenewsapi-token-y27FXL"
 }
 
@@ -64,5 +66,6 @@ module "lambda_displaynews" {
   source_code_hash = var.displaynews_source_hash
   environment      = var.environment
   handler          = "displaynews.handler"
+  timeout_seconds  = 15
   secret_arn       = "arn:aws:secretsmanager:us-east-1:957921932357:secret:todo-app/thenewsapi-token-y27FXL"
 }
