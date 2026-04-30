@@ -30,3 +30,8 @@ variable "handler" {
     type = string
     default = "function1.handler"
 }
+
+variable "secret_arn" {
+  type    = string
+  default = ""
+}

@@ -6,15 +6,27 @@ from pathlib import Path
 import requests
 from dotenv import load_dotenv
 
-env_path = Path(__file__).parent.parent / ".env"
-load_dotenv(dotenv_path=env_path)
+import boto3
 
-THE_NEWS_API_TOKEN = (
-    os.environ.get("THENEWS_API_TOKEN")
-    or os.environ.get("THENEWSAPI_API_TOKEN")
-    or os.environ.get("THENEWS_API_KEY")
-    or os.environ.get("NEWS_API_KEY")
-)
+_cached_token = None
+
+
+def _get_api_token():
+    global _cached_token
+    if _cached_token:
+        return _cached_token
+    secret_arn = os.environ.get("SECRET_ARN")
+    if secret_arn:
+        client = boto3.client("secretsmanager", region_name="us-east-1")
+        response = client.get_secret_value(SecretId=secret_arn)
+        _cached_token = json.loads(response["SecretString"])["THENEWS_API_TOKEN"]
+    else:
+        _cached_token = os.environ.get("THENEWS_API_TOKEN") or os.environ.get(
+            "NEWS_API_KEY"
+        )
+    return _cached_token
+
+
 THE_NEWS_API_URL = "https://api.thenewsapi.com/v1/news/top"
 NEWSFEED_FILE = Path(__file__).parent / "newsfeed.txt"
 
@@ -69,16 +81,9 @@ def _extract_error_message(response):
 
 
 def handler(event, context):
-    if not THE_NEWS_API_TOKEN:
-        return {
-            "statusCode": 500,
-            "body": json.dumps(
-                {
-                    "error": "API token not set",
-                    "details": "Set THENEWS_API_TOKEN (preferred) in project root .env",
-                }
-            ),
-        }
+    token = _get_api_token()
+    if not token:
+        return {"statusCode": 500, "body": json.dumps({"error": "API token not set"})}
 
     event = event or {}
     query = event.get("query", "technology")
@@ -91,7 +96,7 @@ def handler(event, context):
     )
 
     params = {
-        "api_token": THE_NEWS_API_TOKEN,
+        "api_token": token,
         "search": query,
         "language": language,
         "locale": locale,

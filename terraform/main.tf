@@ -52,6 +52,7 @@ module "lambda_getnewsfeed" {
   source_code_hash = var.getnewsfeed_source_hash
   environment      = var.environment
   handler          = "getnewsfeed.handler"
+  secret_arn       = "arn:aws:secretsmanager:us-east-1:957921932357:secret:todo-app/thenewsapi-token-y27FXL"
 }
 
 module "lambda_displaynews" {

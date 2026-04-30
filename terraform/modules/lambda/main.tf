@@ -29,6 +29,20 @@ resource "aws_iam_role_policy" "lambda_s3_read" {
   })
 }
 
+resource "aws_iam_role_policy" "lambda_secrets" {
+  count = var.secret_arn != "" ? 1 : 0
+  name  = "${var.function_name}-secrets-read"
+  role  = aws_iam_role.lambda_exec.id
+  policy = jsonencode({
+    Version = "2012-10-17"
+    Statement = [{
+      Effect   = "Allow"
+      Action   = ["secretsmanager:GetSecretValue"]
+      Resource = var.secret_arn
+    }]
+  })
+}
+
 resource "aws_lambda_function" "this" {
   function_name    = var.function_name
   role             = aws_iam_role.lambda_exec.arn
@@ -39,7 +53,10 @@ resource "aws_lambda_function" "this" {
   source_code_hash = var.source_code_hash
 
   environment {
-    variables = { ENVIRONMENT = var.environment }
+    variables = merge(
+      { ENVIRONMENT = var.environment },
+      var.secret_arn != "" ? { SECRET_ARN = var.secret_arn } : {}
+    )
   }
 
   tags = { Project = "todo-app", ManagedBy = "terraform" }
