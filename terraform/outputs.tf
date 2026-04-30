@@ -17,3 +17,11 @@ output "lambda_function_name" {
 output "lambda_function_arn" {
   value = module.lambda.function_arn
 }
+
+output "getnewsfeed_function_name" {
+  value = module.lambda_getnewsfeed.function_name
+}
+
+output "displaynews_function_name" {
+  value = module.lambda_displaynews.function_name
+}

@@ -16,6 +16,39 @@ THE_NEWS_API_TOKEN = (
     or os.environ.get("NEWS_API_KEY")
 )
 THE_NEWS_API_URL = "https://api.thenewsapi.com/v1/news/top"
+NEWSFEED_FILE = Path(__file__).parent / "newsfeed.txt"
+
+
+def _render_newsfeed_text(payload):
+    lines = [
+        (
+            f"Query: {payload['query']}  |  Published after: {payload['publishedAfter']}  |  "
+            f"Returned: {payload['returned']} / Total found: {payload['totalResults']}"
+        ),
+        "",
+    ]
+
+    articles = payload.get("articles", [])
+    if not articles:
+        lines.append("No articles found in the last 24 hours for this query.")
+        return "\n".join(lines) + "\n"
+
+    for i, article in enumerate(articles, 1):
+        lines.append(f"{i}. {article.get('title') or 'Untitled'}")
+        lines.append(
+            "   "
+            f"Source: {article.get('source') or 'Unknown'}  |  "
+            f"Published: {article.get('publishedAt') or 'Unknown'}"
+        )
+        lines.append(f"   {article.get('description') or 'No description available.'}")
+        lines.append(f"   {article.get('url') or ''}")
+        lines.append("")
+
+    return "\n".join(lines)
+
+
+def _write_newsfeed_file(payload):
+    NEWSFEED_FILE.write_text(_render_newsfeed_text(payload), encoding="utf-8")
 
 
 def _extract_error_message(response):
@@ -104,17 +137,22 @@ def handler(event, context):
         for a in api_articles
     ]
 
+    payload = {
+        "query": query,
+        "publishedAfter": published_after,
+        "totalResults": meta.get("found", len(articles)),
+        "returned": meta.get("returned", len(articles)),
+        "articles": articles,
+    }
+
+    try:
+        _write_newsfeed_file(payload)
+    except OSError as exc:
+        payload["fileWriteWarning"] = f"Could not write {NEWSFEED_FILE.name}: {exc}"
+
     return {
         "statusCode": 200,
-        "body": json.dumps(
-            {
-                "query": query,
-                "publishedAfter": published_after,
-                "totalResults": meta.get("found", len(articles)),
-                "returned": meta.get("returned", len(articles)),
-                "articles": articles,
-            }
-        ),
+        "body": json.dumps(payload),
     }
 
 
@@ -126,16 +164,7 @@ if __name__ == "__main__":
         if body.get("details"):
             print("Details:", body.get("details"))
     else:
-        print(
-            f"Query: {body['query']}  |  Published after: {body['publishedAfter']}  |  "
-            f"Returned: {body['returned']} / Total found: {body['totalResults']}\n"
-        )
-        if not body["articles"]:
-            print("No articles found in the last 24 hours for this query.")
-        for i, article in enumerate(body["articles"], 1):
-            print(f"{i}. {article['title']}")
-            print(
-                f"   Source: {article['source']}  |  Published: {article['publishedAt']}"
-            )
-            print(f"   {article['description']}")
-            print(f"   {article['url']}\n")
+        print(_render_newsfeed_text(body), end="")
+        print(f"Saved feed to: {NEWSFEED_FILE}")
+        if body.get("fileWriteWarning"):
+            print("Warning:", body["fileWriteWarning"])

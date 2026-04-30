@@ -28,23 +28,44 @@ jobs:
                     aws-region: us-east-1
 
             # Zip the contents of lambda/
-            -   name: Package Lambda code
+            -   name: Package Lambda functions
                 run: |
-                    cd lambda
-                    zip -r ../function.zip .
-                    cd ..
+                    # Create temp build directories
+                    mkdir -p build/getnewsfeed build/displaynews
+                    
+                    # Package getnewsfeed
+                    pip install -r lambda/requirements.txt -t build/getnewsfeed/
+                    cp lambda/getnewsfeed.py build/getnewsfeed/
+                    cd build/getnewsfeed && zip -r ../../getnewsfeed.zip . && cd ../..
+                    
+                    # Package displaynews
+                    pip install -r lambda/requirements.txt -t build/displaynews/
+                    cp lambda/displaynews.py build/displaynews/
+                    cd build/displaynews && zip -r ../../displaynews.zip . && cd ../..
+                    
+                    # Keep the original hello-lambda packaging
+                    mkdir -p build/hello
+                    pip install -r lambda/requirements.txt -t build/hello/
+                    cp lambda/function1.py build/hello/
+                    cd build/hello && zip -r ../../function.zip . && cd ../..
 
             # Compute hash for functions
-            -   name: Compute source hash
-                id: hash
+            -   name: Compute source hashes
+                id: hashes
                 run: |
-                    HASH=$(openssl dgst -sha256 -binary function.zip | openssl base64)
-                    echo "value=$HASH" >> "$GITHUB_OUTPUT"
+                    HASH1=$(openssl dgst -sha256 -binary function.zip | openssl base64)
+                    HASH2=$(openssl dgst -sha256 -binary getnewsfeed.zip | openssl base64)
+                    HASH3=$(openssl dgst -sha256 -binary displaynews.zip | openssl base64)
+                    echo "lambda=$HASH1" >> "$GITHUB_OUTPUT"
+                    echo "getnewsfeed=$HASH2" >> "$GITHUB_OUTPUT"
+                    echo "displaynews=$HASH3" >> "$GITHUB_OUTPUT"
 
             # Upload the package to S3 bucket
             -   name: Upload zip to S3
                 run: |
                     aws s3 cp function.zip s3://hsfassih-todo-app/lambda/function.zip
+                    aws s3 cp getnewsfeed.zip s3://hsfassih-todo-app/lambda/getnewsfeed.zip
+                    aws s3 cp displaynews.zip s3://hsfassih-todo-app/lambda/displaynews.zip
 
             -   name: Setup Terraform
                 uses: hashicorp/setup-terraform@v3
@@ -60,5 +81,7 @@ jobs:
                 run: |
                     terraform apply -auto-approve \
                     -var="bucket_name=hsfassih-todo-app" \
-                    -var="lambda_source_hash=${{ steps.hash.outputs.value }}" \
+                    -var="lambda_source_hash=${{ steps.hashes.outputs.lambda }}" \
+                    -var="getnewsfeed_source_hash=${{ steps.hashes.outputs.getnewsfeed }}" \
+                    -var="displaynews_source_hash=${{ steps.hashes.outputs.displaynews }}" \
                     -var="environment=prod"

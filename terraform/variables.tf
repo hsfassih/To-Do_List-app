@@ -24,3 +24,15 @@ variable "lambda_source_hash" {
   type = string
   default = ""
 }
+
+variable "getnewsfeed_source_hash" {
+  description = "Base64-encoded SHA256 of the getnewsfeed Lambda zip"
+  type        = string
+  default     = ""
+}
+
+variable "displaynews_source_hash" {
+  description = "Base64-encoded SHA256 of the displaynews Lambda zip"
+  type        = string
+  default     = ""
+}

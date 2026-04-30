@@ -42,3 +42,25 @@ module "lambda" {
   source_code_hash = var.lambda_source_hash
   environment      = var.environment
 }
+
+module "lambda_getnewsfeed" {
+  source = "./modules/lambda"
+
+  function_name    = "getnewsfeed-lambda"
+  s3_bucket        = var.bucket_name
+  s3_key           = "lambda/getnewsfeed.zip"
+  source_code_hash = var.getnewsfeed_source_hash
+  environment      = var.environment
+  handler          = "getnewsfeed.handler"
+}
+
+module "lambda_displaynews" {
+  source = "./modules/lambda"
+
+  function_name    = "displaynews-lambda"
+  s3_bucket        = var.bucket_name
+  s3_key           = "lambda/displaynews.zip"
+  source_code_hash = var.displaynews_source_hash
+  environment      = var.environment
+  handler          = "displaynews.handler"
+}
