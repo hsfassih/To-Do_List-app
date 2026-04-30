@@ -1,4 +1,6 @@
 import re
+import os
+import boto3
 import awsgi
 from datetime import datetime
 from pathlib import Path
@@ -84,16 +86,32 @@ def parse_newsfeed(text):
 
 @app.route("/")
 def index():
-    if not NEWSFEED_FILE.exists():
+    feed_text = None
+    error_message = None
+
+    s3_bucket = os.environ.get("S3_BUCKET")
+    if s3_bucket:
+        s3 = boto3.client("s3", region_name="us-east-1")
+        try:
+            obj = s3.get_object(Bucket=s3_bucket, Key="newsfeed/newsfeed.txt")
+            feed_text = obj["Body"].read().decode("utf-8")
+        except Exception as exc:
+            error_message = f"Failed to fetch newsfeed from S3: {exc}"
+    else:
+        if NEWSFEED_FILE.exists():
+            feed_text = NEWSFEED_FILE.read_text(encoding="utf-8")
+        else:
+            error_message = "newsfeed.txt not found. Run getnewsfeed.py first."
+
+    if not feed_text:
         return render_template_string(
             TEMPLATE,
             meta=None,
             articles=[],
-            error_message="newsfeed.txt was not found. Run getnewsfeed.py first.",
+            error_message=error_message or "No newsfeed data available.",
             generated_at=datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
         )
 
-    feed_text = NEWSFEED_FILE.read_text(encoding="utf-8")
     meta, articles = parse_newsfeed(feed_text)
     return render_template_string(
         TEMPLATE,
@@ -271,6 +289,21 @@ TEMPLATE = """
 
 
 def handler(event, context):
+    event = event or {}
+    if "httpMethod" not in event and "requestContext" not in event:
+        event = {
+            "httpMethod": "GET",
+            "path": "/",
+            "headers": {},
+            "multiValueHeaders": {},
+            "queryStringParameters": {},
+            "multiValueQueryStringParameters": {},
+            "pathParameters": {},
+            "stageVariables": {},
+            "requestContext": {},
+            "body": None,
+            "isBase64Encoded": False,
+        }
     return awsgi.response(app, event, context)
 
 

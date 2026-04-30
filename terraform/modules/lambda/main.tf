@@ -23,7 +23,7 @@ resource "aws_iam_role_policy" "lambda_s3_read" {
     Version = "2012-10-17"
     Statement = [{
       Effect   = "Allow"
-      Action   = ["s3:GetObject"]
+      Action   = ["s3:GetObject", "s3:PutObject"]
       Resource = "arn:aws:s3:::${var.s3_bucket}/*"
     }]
   })
@@ -55,6 +55,7 @@ resource "aws_lambda_function" "this" {
   environment {
     variables = merge(
       { ENVIRONMENT = var.environment },
+      var.s3_bucket != "" ? { S3_BUCKET = var.s3_bucket } : {},
       var.secret_arn != "" ? { SECRET_ARN = var.secret_arn } : {}
     )
   }

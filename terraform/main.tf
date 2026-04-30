@@ -64,4 +64,5 @@ module "lambda_displaynews" {
   source_code_hash = var.displaynews_source_hash
   environment      = var.environment
   handler          = "displaynews.handler"
+  secret_arn       = "arn:aws:secretsmanager:us-east-1:957921932357:secret:todo-app/thenewsapi-token-y27FXL"
 }

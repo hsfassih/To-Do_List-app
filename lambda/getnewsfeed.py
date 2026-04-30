@@ -4,8 +4,6 @@ from datetime import datetime, timedelta, timezone
 from pathlib import Path
 
 import requests
-from dotenv import load_dotenv
-
 import boto3
 
 _cached_token = None
@@ -60,7 +58,21 @@ def _render_newsfeed_text(payload):
 
 
 def _write_newsfeed_file(payload):
-    NEWSFEED_FILE.write_text(_render_newsfeed_text(payload), encoding="utf-8")
+    content = _render_newsfeed_text(payload)
+    NEWSFEED_FILE.write_text(content, encoding="utf-8")
+
+    s3_bucket = os.environ.get("S3_BUCKET")
+    if s3_bucket:
+        s3 = boto3.client("s3", region_name="us-east-1")
+        try:
+            s3.put_object(
+                Bucket=s3_bucket,
+                Key="newsfeed/newsfeed.txt",
+                Body=content.encode("utf-8"),
+                ContentType="text/plain",
+            )
+        except Exception as exc:
+            raise OSError(f"Failed to upload to S3: {exc}")
 
 
 def _extract_error_message(response):
