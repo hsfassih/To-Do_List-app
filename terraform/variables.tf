@@ -20,7 +20,7 @@ variable "versioning_enabled" {
 }
 
 variable "lambda_source_hash" {
-  description = "Base64-encoded SHA256 hash of the Lambda zip - injected by CI"
+  description = "Base64-encoded SHA256 of the Lambda zip - injected by CI"
   type = string
   default = ""
 }
