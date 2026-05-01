@@ -82,11 +82,3 @@ resource "aws_lambda_permission" "displaynews_function_url" {
   principal               = "*"
   function_url_auth_type  = "NONE"
 }
-
-resource "aws_lambda_permission" "displaynews_invoked_via_url" {
-  statement_id            = "AllowPublicInvokeViaFunctionUrl"
-  action                  = "lambda:InvokeFunction"
-  function_name           = module.lambda_displaynews.function_name
-  principal               = "*"
-  invoked_via_function_url = true
-}
