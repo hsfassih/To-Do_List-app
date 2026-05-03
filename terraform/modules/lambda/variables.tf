@@ -40,3 +40,8 @@ variable "secret_arn" {
   type    = string
   default = ""
 }
+
+variable "extra_env_vars" {
+  type    = map(string)
+  default = {}
+}

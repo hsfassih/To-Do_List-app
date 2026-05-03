@@ -29,3 +29,7 @@ output "displaynews_function_name" {
 output "displaynews_function_url" {
   value = aws_lambda_function_url.displaynews.function_url
 }
+
+output "sendnews_function_name" {
+  value = module.lambda_sendnews.function_name
+}

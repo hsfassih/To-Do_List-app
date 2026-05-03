@@ -36,3 +36,14 @@ variable "displaynews_source_hash" {
   type        = string
   default     = ""
 }
+
+variable "sendnews_source_hash" {
+  description = "Base64-encoded SHA256 of the sendnews Lambda zip"
+  type        = string
+  default     = ""
+}
+
+variable "ses_sender_email" {
+  description = "SES-verified sender email address"
+  type        = string
+}

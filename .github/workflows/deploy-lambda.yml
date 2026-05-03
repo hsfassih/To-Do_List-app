@@ -48,7 +48,10 @@ jobs:
                     pip install -r lambda/requirements.txt -t build/hello/
                     cp lambda/function1.py build/hello/
                     cd build/hello && zip -r ../../function.zip . && cd ../..
-
+                    # Package sendnews (boto3 is built-in to Lambda runtime, no pip install needed)
+                    mkdir -p build/sendnews
+                    cp lambda/sendnews.py build/sendnews/
+                    cd build/sendnews && zip -r ../../sendnews.zip . && cd ../...
             # Compute hash for functions
             -   name: Compute source hashes
                 id: hashes
@@ -56,9 +59,11 @@ jobs:
                     HASH1=$(openssl dgst -sha256 -binary function.zip | openssl base64)
                     HASH2=$(openssl dgst -sha256 -binary getnewsfeed.zip | openssl base64)
                     HASH3=$(openssl dgst -sha256 -binary displaynews.zip | openssl base64)
+                    HASH4=$(openssl dgst -sha256 -binary sendnews.zip | openssl base64)
                     echo "lambda=$HASH1" >> "$GITHUB_OUTPUT"
                     echo "getnewsfeed=$HASH2" >> "$GITHUB_OUTPUT"
                     echo "displaynews=$HASH3" >> "$GITHUB_OUTPUT"
+                    echo "sendnews=$HASH4" >> "$GITHUB_OUTPUT"
 
             # Upload the package to S3 bucket
             -   name: Upload zip to S3
@@ -66,6 +71,7 @@ jobs:
                     aws s3 cp function.zip s3://hsfassih-todo-app/lambda/function.zip
                     aws s3 cp getnewsfeed.zip s3://hsfassih-todo-app/lambda/getnewsfeed.zip
                     aws s3 cp displaynews.zip s3://hsfassih-todo-app/lambda/displaynews.zip
+                    aws s3 cp sendnews.zip s3://hsfassih-todo-app/lambda/sendnews.zip
 
             -   name: Setup Terraform
                 uses: hashicorp/setup-terraform@v3
@@ -84,6 +90,8 @@ jobs:
                     -var="lambda_source_hash=${{ steps.hashes.outputs.lambda }}" \
                     -var="getnewsfeed_source_hash=${{ steps.hashes.outputs.getnewsfeed }}" \
                     -var="displaynews_source_hash=${{ steps.hashes.outputs.displaynews }}" \
+                    -var="sendnews_source_hash=${{ steps.hashes.outputs.sendnews }}" \
+                    -var="ses_sender_email=${{ secrets.SES_SENDER_EMAIL }}" \
                     -var="environment=prod"
 
             -   name: Show Display News URL

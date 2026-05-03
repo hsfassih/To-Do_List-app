@@ -70,6 +70,24 @@ module "lambda_displaynews" {
   secret_arn       = "arn:aws:secretsmanager:us-east-1:957921932357:secret:todo-app/thenewsapi-token-y27FXL"
 }
 
+module "lambda_sendnews" {
+  source = "./modules/lambda"
+
+  function_name    = "sendnews-lambda"
+  s3_bucket        = var.bucket_name
+  s3_key           = "lambda/sendnews.zip"
+  source_code_hash = var.sendnews_source_hash
+  environment      = var.environment
+  handler          = "sendnews.handler"
+  timeout_seconds  = 30
+  ses_sender_email = var.ses_sender_email
+
+  extra_env_vars = {
+    DISPLAYNEWS_URL = aws_lambda_function_url.displaynews.function_url
+    SENDER_EMAIL    = var.ses_sender_email
+  }
+}
+
 resource "aws_lambda_function_url" "displaynews" {
   function_name      = module.lambda_displaynews.function_name
   authorization_type = "NONE"

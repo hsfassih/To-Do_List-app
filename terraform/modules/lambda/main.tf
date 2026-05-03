@@ -57,9 +57,34 @@ resource "aws_lambda_function" "this" {
     variables = merge(
       { ENVIRONMENT = var.environment },
       var.s3_bucket != "" ? { S3_BUCKET = var.s3_bucket } : {},
-      var.secret_arn != "" ? { SECRET_ARN = var.secret_arn } : {}
+      var.secret_arn != "" ? { SECRET_ARN = var.secret_arn } : {},
+      var.extra_env_vars
     )
   }
 
   tags = { Project = "todo-app", ManagedBy = "terraform" }
+}
+
+variable "ses_sender_email" {
+  type    = string
+  default = ""
+}
+
+resource "aws_iam_role_policy" "lambda_ses_send" {
+  count = var.ses_sender_email != "" ? 1 : 0
+  name  = "${var.function_name}-ses-send"
+  role  = aws_iam_role.lambda_exec.id
+  policy = jsonencode({
+    Version = "2012-10-17"
+    Statement = [{
+      Effect   = "Allow"
+      Action   = ["ses:SendEmail", "ses:SendRawEmail"]
+      Resource = "*"
+      Condition = {
+        StringEquals = {
+          "ses:FromAddress" = var.ses_sender_email
+        }
+      }
+    }]
+  })
 }
