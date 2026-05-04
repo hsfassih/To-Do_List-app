@@ -3,7 +3,7 @@ import os
 import boto3
 from botocore.exceptions import ClientError
 
-RECIPIENT = "fasih.hasny@softbuilds.co"
+RECIPIENT = "hsfassih.28@gmail.com"
 REGION = "us-east-1"
 
 
